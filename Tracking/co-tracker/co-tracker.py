@@ -5,16 +5,24 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 from matplotlib.widgets import RectangleSelector
 
-def generate_grid_points(xmin, ymin, xmax, ymax, grid_size):
-    x_points = np.linspace(xmin, xmax, grid_size)
-    y_points = np.linspace(ymin, ymax, grid_size)
+
+def generate_grid_points(xmin, ymin, xmax, ymax, grid_size, fill_all=False):
+    if fill_all:
+        x_points = np.arange(xmin, xmax + 1)
+        y_points = np.arange(ymin, ymax + 1)
+    else:
+        x_points = np.linspace(xmin, xmax, grid_size)
+        y_points = np.linspace(ymin, ymax, grid_size)
+
     points = np.array([[x, y] for x in x_points for y in y_points])
     return points
+
 
 def onselect(eclick, erelease):
     global box_coords
     xmin, ymin, xmax, ymax = eclick.xdata, eclick.ydata, erelease.xdata, erelease.ydata
     box_coords.append((xmin, ymin, xmax, ymax))
+
 
 def select_boxes_on_frame(frame):
     global box_coords
@@ -44,7 +52,7 @@ def load_video(video_source):
     return frames
 
 
-def track_points_in_video(video_source, points=None, grid_size=10, interactive=False):
+def track_points_in_video(video_source, points=None, grid_size=10, interactive=False, fill_all=False):
     frames = load_video(video_source)
 
     if interactive:
@@ -53,7 +61,7 @@ def track_points_in_video(video_source, points=None, grid_size=10, interactive=F
         box_coords = select_boxes_on_frame(first_frame)
         points = []
         for (xmin, ymin, xmax, ymax) in box_coords:
-            points.extend(generate_grid_points(xmin, ymin, xmax, ymax, grid_size))
+            points.extend(generate_grid_points(xmin, ymin, xmax, ymax, grid_size, fill_all))
 
     device = 'cuda'
     video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(device)  # B T C H W
@@ -106,5 +114,6 @@ def plot_tracking_results(pred_tracks, pred_visibility, frames):
 
 if __name__ == "__main__":
     video_source = r"C:\Users\dudyk\PycharmProjects\NehorayWorkSpace\Shaback\scene_10.mp4"
-    pred_tracks, pred_visibility, frames = track_points_in_video(video_source, interactive=True, grid_size=5)
+    pred_tracks, pred_visibility, frames = track_points_in_video(video_source, interactive=True, grid_size=5,
+                                                                 fill_all=True)
     plot_tracking_results(pred_tracks, pred_visibility, frames)
