@@ -1,6 +1,34 @@
-# Ignore large model files
-*.pt
+# Ignore model files
 *.pth
+*.pt
 *.tar
-*png
-*jpg
+*.pkl
+
+# Ignore virtual environment directories
+venv/
+.env/
+
+# Ignore Git object files (large objects)
+.git/objects/
+
+# Ignore other large files
+Omer/to_neo/RVRT_deblur_shoval_train.py_blur20_TEST1_Step60000.tar
+
+# Ignore compiled libraries and binaries
+*.dll
+*.lib
+*.pyd
+
+# Ignore Python bytecode files
+__pycache__/
+*.py[cod]
+
+# Ignore images
+*.png
+
+# Ignore other untracked directories and files
+.idea/
+ben_deblur/
+checkpoints/
+data/
+tmp/
