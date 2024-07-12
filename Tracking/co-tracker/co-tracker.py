@@ -115,5 +115,5 @@ def plot_tracking_results(pred_tracks, pred_visibility, frames):
 if __name__ == "__main__":
     video_source = r"C:\Users\dudyk\PycharmProjects\NehorayWorkSpace\Shaback\scene_10.mp4"
     pred_tracks, pred_visibility, frames = track_points_in_video(video_source, interactive=True, grid_size=5,
-                                                                 fill_all=True)
+                                                                 fill_all=False)
     plot_tracking_results(pred_tracks, pred_visibility, frames)
