@@ -92,8 +92,8 @@ def get_mask_from_bbox(image_path, checkpoint_path, bbox=None, interactive=False
         if current_bbox is None:
             raise ValueError("Bounding box not drawn correctly.")
 
-        x_min, y_min = current_bbox[0]
-        x_max, y_max = current_bbox[1]
+        x_max, y_min = current_bbox[0]
+        x_min, y_max = current_bbox[1]
         bbox = (x_min, y_min, x_max, y_max)
 
     elif bbox is None:
@@ -156,8 +156,8 @@ def display_mask_bw(mask):
     cv2.destroyAllWindows()
 
 # Example usage
-image_path = r'C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/img.png'
-bbox = (50, 50, 150, 150)  # Example bounding box coordinates
+image_path = r'C:\Users\dudyk\PycharmProjects\NehorayWorkSpace\Shaback\models\img.png'
+bbox = (425, 600, 700, 875)  # Example bounding box coordinates
 checkpoint_path = r'C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/sam_vit_h_4b8939.pth'
 
 mask = get_mask_from_bbox(image_path, checkpoint_path, interactive=True)

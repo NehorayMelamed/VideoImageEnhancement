@@ -50,8 +50,8 @@ def interactive_bbox_drawing(image_path):
     if current_bbox is None:
         raise ValueError("Bounding box not drawn correctly.")
 
-    x_min, y_min = current_bbox[0]
-    x_max, y_max = current_bbox[1]
+    x_max, y_min = current_bbox[0]
+    x_min, y_max = current_bbox[1]
     return [x_min, y_min, x_max, y_max]
 
 def get_mask_from_bbox_ultralytics(image_path, model_path, bbox, display_mask=False):
