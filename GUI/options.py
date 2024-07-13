@@ -1,24 +1,18 @@
-import os
 import sys
-from pathlib import Path
 import mimetypes
 import tkinter as tk
-
 import PARAMETER
+from WienerDeconvolution import WienerDeconvolution
 
-### deblur
+# Update sys.path to include required directories for deblur
 sys.path.append(f"{PARAMETER.BASE_PROJECT}/Omer")
 sys.path.append(f"{PARAMETER.BASE_PROJECT}/Omer/to_neo")
 sys.path.append(f"{PARAMETER.BASE_PROJECT}/Omer/RVRT_deblur_inference.py")
 
+from AlignClass import *
 
 
-### Ben - NafNet
-
-
-
-
-
+# Updated options for denoise and deblur methods
 class InputType:
     DIR_IMAGES = "dir of images"
     VIDEO = "video"
@@ -46,172 +40,127 @@ class InputChecker:
 
 
 class DenoiseOptions:
-    RVRT = "Rvrt"
-    DENOISE_YOAV = "denoise yoav"
-    STABILIZE_ENTIRE_FRAME = "stabilize entire frame"
-    STABLE_OBJECT_COTRACKER = "stable object 'with co-tracker'"
-    STABLE_OBJECT_OPTICAL_FLOW = "stable object with optical flow tracker"
-    STABLE_OBJECT_CLASSIC_TRACKER = "stable object 'classic tracker'"
+    SCC = "SCC"
+    ECC = "ECC"
+    FEATURE_BASED = "FeatureBased"
+    OPTICAL_FLOW = "Optical Flow"
+    DENOISE_COT = "DenoiseCoT"
+    RV_CLASSIC = "RV-Classic"
+    DENOISE_YOV = "Denoise-Yov"
 
     def __init__(self, log_function):
         self.log_function = log_function
 
-    def perform_RVRT(self, input_source):
-        input_name = os.path.basename(input_source).split('.')[0]
-        path_to_directory_output = build_directory_to_service(base_directory="DENOISE", service_name="RVRT",
-                                                              input_name=input_name)
-        self.log_function(f"Performing RVRT denoise on: {input_source}", "info")
-        # Example function call (replace with actual function)
-        # run_rvrt_denoise(input_source, path_to_directory_output)
-        # save_results(self.log_function, path_to_directory_output,
-        #              {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+    def perform_SCC(self, input_source, source_data):
+        self.log_function(f"Performing SCC denoise on: {input_source}", "info")
+        # Add implementation here
 
-    def perform_DENOISE_YOAV(self, input_source):
-        DenoiseWindow(tk.Tk(), self.log_function, input_source)
+    def perform_ECC(self, input_source, source_data):
+        self.log_function(f"Performing ECC denoise on: {input_source}", "info")
+        # Add implementation here
 
-    def perform_STABILIZE_ENTIRE_FRAME(self, input_source):
+    def perform_FEATURE_BASED(self, input_source, source_data):
+        self.log_function(f"Performing FeatureBased denoise on: {input_source}", "info")
         input_name = os.path.basename(input_source).split('.')[0]
         path_to_directory_output = build_directory_to_service(base_directory="DENOISE",
-                                                              service_name="STABILIZE_ENTIRE_FRAME",
+                                                              service_name=DenoiseOptions.FEATURE_BASED,
                                                               input_name=input_name)
-        self.log_function(f"Performing stabilize entire frame on: {input_source}", "info")
-        # Example function call (replace with actual function)
-        # run_stabilize_entire_frame(input_source, path_to_directory_output)
-        # save_results(self.log_function, path_to_directory_output,
-        #              {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        aligned_crops, average_crop = AlignClass.align_and_average_frames_using_FeatureBased(frames=source_data)
+        save_results(aligned_crops=aligned_crops, average_crop=average_crop, output_directory=path_to_directory_output)
+        # Add implementation here
 
-    def perform_STABLE_OBJECT_COTRACKER(self, input_source):
+    def perform_OPTICAL_FLOW(self, input_source, source_data):
+        self.log_function(f"Performing Optical Flow denoise on: {input_source}", "info")
         input_name = os.path.basename(input_source).split('.')[0]
         path_to_directory_output = build_directory_to_service(base_directory="DENOISE",
-                                                              service_name="STABLE_OBJECT_COTRACKER",
+                                                              service_name=DenoiseOptions.OPTICAL_FLOW,
                                                               input_name=input_name)
-        self.log_function(f"Performing stable object 'with co-tracker' on: {input_source}", "info")
-        # Example function call (replace with actual function)
-        # run_stable_object_cotracker(input_source, path_to_directory_output)
-        # save_results(self.log_function, path_to_directory_output,
-        #              {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        aligned_crops, average_crop = AlignClass.align_and_average_frames_using_OpticalFlow(source_data)
+        save_results(aligned_crops=aligned_crops, average_crop=average_crop, output_directory=path_to_directory_output)
 
-    def perform_STABLE_OBJECT_OPTICAL_FLOW(self, input_source):
+        # Add implementation here
+
+    def perform_DENOISE_COT(self, input_source, source_data):
+        self.log_function(f"Performing denoise co tracker denoise on: {input_source}", "info")
         input_name = os.path.basename(input_source).split('.')[0]
         path_to_directory_output = build_directory_to_service(base_directory="DENOISE",
-                                                              service_name="STABLE_OBJECT_OPTICAL_FLOW",
+                                                              service_name=DenoiseOptions.DENOISE_COT,
                                                               input_name=input_name)
-        self.log_function(f"Performing stable object with optical flow tracker on: {input_source}", "info")
-        # Example function call (replace with actual function)
-        # run_stable_object_optical_flow(input_source, path_to_directory_output)
-        # save_results(self.log_function, path_to_directory_output,
-        #              {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        aligned_crops, average_crop = AlignClass.align_and_average_frames_using_CoTracker(frames=source_data)
+        save_results(aligned_crops=aligned_crops, average_crop=average_crop, output_directory=path_to_directory_output)
+        # Add implementation here
 
-    def perform_STABLE_OBJECT_CLASSIC_TRACKER(self, input_source):
+    def perform_RV_CLASSIC(self, input_source, source_data):
+        self.log_function(f"Performing RV-Classic denoise on: {input_source}", "info")
+        # Add implementation here
+
+    def perform_DENOISE_YOV(self, input_source, source_data):
         input_name = os.path.basename(input_source).split('.')[0]
-        path_to_directory_output = build_directory_to_service(base_directory="DENOISE",
-                                                              service_name="STABLE_OBJECT_CLASSIC_TRACKER",
+        path_to_directory_output = build_directory_to_service(base_directory="DENOISE", service_name="DENOISE_YOV",
                                                               input_name=input_name)
-        self.log_function(f"Performing stable object 'classic tracker' on: {input_source}", "info")
+        self.log_function(f"Performing Denoise-Yov denoise on: {input_source}", "info")
         # Example function call (replace with actual function)
-        # run_stable_object_classic_tracker(input_source, path_to_directory_output)
-        # save_results(self.log_function, path_to_directory_output,
-        #              {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        # run_denoise_yov(source_data, path_to_directory_output)
 
 
 class DeblurOptions:
-    RVRT = "Rvrt"
-    REALBASICVSR = "RealBasicVSR"
-    RVRT_OMER = "RvrtOmer"
+    RV_OM = "RV-Om"
     NAFNET = "NafNet"
-    BLUR_KERNEL_DEBLUR = "Blur kernel and deblur"
+    NUBKE = "NubKe"
+    NUMBKE2WIN = "Numbke2Win"
+    UNSUPERWIN = "UnsuperWin"
 
     def __init__(self, log_function):
         self.log_function = log_function
 
-    def perform_RVRT(self, input_source):
+    def perform_RV_OM(self, input_source, source_data):
         input_name = os.path.basename(input_source).split('.')[0]
-        path_to_directory_output = build_directory_to_service(base_directory="DEBLUR", service_name="RVRT",
+        path_to_directory_output = build_directory_to_service(base_directory="DEBLUR", service_name="RV-Om",
                                                               input_name=input_name)
-        self.log_function(f"Performing RVRT deblur on: {input_source}", "info")
-        # Example function call (replace with actual function)
-        # run_rvrt_deblur(input_source, path_to_directory_output)
-        # save_results(self.log_function, path_to_directory_output,
-        #              {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
-
-    def perform_REALBASICVSR(self, input_source):
-        input_name = os.path.basename(input_source).split('.')[0]
-        path_to_directory_output = build_directory_to_service(base_directory="DEBLUR", service_name="REALBASICVSR",
-                                                              input_name=input_name)
-        self.log_function(f"Performing RealBasicVSR deblur on: {input_source}", "info")
-        # Example function call (replace with actual function)
-        # run_realbasicvsr_deblur(input_source, path_to_directory_output)
-        # save_results(self.log_function, path_to_directory_output,
-        #              {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
-
-    def perform_RVRT_OMER(self, input_source):
-        input_name = os.path.basename(input_source).split('.')[0]
-        path_to_directory_output = build_directory_to_service(base_directory="DEBLUR", service_name="RVRT_OMER",
-                                                              input_name=input_name)
-        self.log_function(f"Performing RvrtOmer deblur on: {input_source}", "info")
+        self.log_function(f"Performing RV-Om deblur on: {input_source}", "info")
         from Omer.to_neo.main_deblur import main_deblur
 
         # Example function call (replace with actual function)
         if main_deblur(video_path=input_source, use_roi=False, save_videos=True,
-                    blur_video_mp4=os.path.join(path_to_directory_output, "blur_video.mp4"),
-                    deblur_video_mp4=os.path.join(path_to_directory_output, "deblur_video.mp4")
-                    ) is False:
-            self.log_function('Failed to perform deblur omer')
+                       blur_video_mp4=os.path.join(path_to_directory_output, "blur_video.mp4"),
+                       deblur_video_mp4=os.path.join(path_to_directory_output, "deblur_video.mp4")
+                       ) is False:
+            self.log_function('Failed to perform deblur RV-Om')
             return False
 
-
-    def perform_NAFNET(self, input_source):
+    def perform_NAFNET(self, input_source, source_data):
         from ben_deblur.ImageDeBlur.deblur_functions import main_nafnet_deblur
 
         input_name = os.path.basename(input_source).split('.')[0]
-        path_to_directory_output = build_directory_to_service(base_directory="DEBLUR", service_name="NAFNET",
+        path_to_directory_output = build_directory_to_service(base_directory="DEBLUR", service_name="NafNet",
                                                               input_name=input_name)
         self.log_function(f"Performing NafNet deblur on: {input_source}", "info")
 
         if main_nafnet_deblur(video_path=input_source, output_folder=path_to_directory_output) is False:
-            self.log_function("failed to perform nafnet")
+            self.log_function("Failed to perform NafNet deblur")
 
-
-
-    def perform_BLUR_KERNEL_DEBLUR(self, input_source):
+    def perform_NUBKE(self, input_source, source_data):
+        self.log_function(f"Performing Optical Flow denoise on: {input_source}", "info")
         input_name = os.path.basename(input_source).split('.')[0]
-        path_to_directory_output = build_directory_to_service(base_directory="DEBLUR",
-                                                              service_name="BLUR_KERNEL_DEBLUR", input_name=input_name)
-        self.log_function(f"Performing Blur kernel and deblur on: {input_source}", "info")
-        # Example function call (replace with actual function)
-        # run_blur_kernel_deblur(input_source, path_to_directory_output)
-        # save_results(self.log_function, path_to_directory_output,
-        #              {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        path_to_directory_output = build_directory_to_service(base_directory="DEBLUR", service_name=DeblurOptions.NUBKE,
+                                                              input_name=input_name)
+        average_blur_kernels_list, deblurred_crops_list = WienerDeconvolution.get_blur_kernels_and_deblurred_images_using_NUBKE(
+            source_data[0:8])
+        save_results(average_blur_kernels_list=average_blur_kernels_list, deblurred_crops_list=deblurred_crops_list,
+                     output_directory=path_to_directory_output)
 
+    def perform_NUMBKE2WIN(self, input_source, source_data):
+        self.log_function(f"Performing Optical Flow denoise on: {input_source}", "info")
+        input_name = os.path.basename(input_source).split('.')[0]
+        path_to_directory_output = build_directory_to_service(base_directory="DEBLUR", service_name=DeblurOptions.NUBKE,
+                                                              input_name=input_name)
+        average_blur_kernels_list, deblurred_crops_list = WienerDeconvolution.get_blur_kernel_using_NUBKE_and_deblur_using_Wiener_all_options()
+        save_results(average_blur_kernels_list=average_blur_kernels_list, deblurred_crops_list=deblurred_crops_list,
+                     output_directory=path_to_directory_output)
 
-def save_results(log_function, output_directory, results):
-    for result_name, result_data in results.items():
-        result_path = output_directory / result_name
-        with open(result_path, 'wb') as result_file:
-            result_file.write(result_data)
-
-    log_function(f"Results saved in {output_directory}", "info")
-
-
-def build_directory_to_service(base_directory, service_name, input_name):
-    FULL_PATH_OUTPUT = Path("OUTPUT")
-    if not FULL_PATH_OUTPUT.exists():
-        FULL_PATH_OUTPUT.mkdir()
-
-    path_to_output_directory_base = FULL_PATH_OUTPUT / base_directory
-    if not path_to_output_directory_base.exists():
-        path_to_output_directory_base.mkdir()
-
-    path_to_output_directory_service = path_to_output_directory_base / service_name
-    if not path_to_output_directory_service.exists():
-        path_to_output_directory_service.mkdir()
-
-    path_to_output_directory_service_with_input_name = path_to_output_directory_service / input_name
-    if not path_to_output_directory_service_with_input_name.exists():
-        path_to_output_directory_service_with_input_name.mkdir()
-
-    return path_to_output_directory_service_with_input_name
-
+    def perform_UNSUPERWIN(self, input_source, source_data):
+        self.log_function(f"Performing UnsuperWin deblur on: {input_source}", "info")
+        # Add implementation here
 
 
 class DenoiseWindow:
@@ -256,7 +205,6 @@ class DenoiseWindow:
     def perform_denoising(self):
         from Yoav_denoise_new.denois.main_denoise import main_denoise
 
-
         if self.video_path:
             use_roi = self.use_roi_var.get()
 
@@ -265,7 +213,7 @@ class DenoiseWindow:
             stride = int(self.stride_entry.get())
 
             base_video_name = os.path.basename(self.video_path).split('.')[0]
-            path_to_directory_output = build_directory_to_service(base_directory="DENOISE", service_name="DENOISE_YOAV",
+            path_to_directory_output = build_directory_to_service(base_directory="DENOISE", service_name="DENOISE_YOV",
                                                                   input_name=base_video_name)
 
             full_output_video_path = path_to_directory_output / f"denoise_{base_video_name}.mp4"
@@ -285,3 +233,109 @@ class DenoiseWindow:
             self.logger("Please select a video file.")
         self.window.destroy()
 
+
+def build_directory_to_service(base_directory, service_name, input_name):
+    FULL_PATH_OUTPUT = Path("OUTPUT")
+    if not FULL_PATH_OUTPUT.exists():
+        FULL_PATH_OUTPUT.mkdir()
+
+    path_to_output_directory_base = FULL_PATH_OUTPUT / base_directory
+    if not path_to_output_directory_base.exists():
+        path_to_output_directory_base.mkdir()
+
+    path_to_output_directory_input = path_to_output_directory_base / input_name
+    if not path_to_output_directory_input.exists():
+        path_to_output_directory_input.mkdir()
+
+    path_to_output_directory_service = path_to_output_directory_input / service_name
+    if not path_to_output_directory_service.exists():
+        path_to_output_directory_service.mkdir()
+
+    return path_to_output_directory_service
+
+
+import os
+import cv2
+import numpy as np
+from pathlib import Path
+
+
+def save_results(aligned_crops=None, average_crop=None, average_blur_kernels_list=None, deblurred_crops_list=None,
+                 output_directory='output'):
+    # Ensure the output directory exists
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+
+    # Save aligned crops as a video and individual frames if not None
+    if aligned_crops is not None:
+        video_path = os.path.join(output_directory, 'aligned_crops.mp4')
+        height, width, layers = aligned_crops[0].shape
+        video = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
+
+        for frame in aligned_crops:
+            video.write(frame)
+
+        video.release()
+
+        # Save aligned crops as individual frames
+        frames_dir = os.path.join(output_directory, 'dir_aligned_crops_frames')
+        if not os.path.exists(frames_dir):
+            os.makedirs(frames_dir)
+
+        for i, frame in enumerate(aligned_crops):
+            frame_path = os.path.join(frames_dir, f'frame_{i:04d}.png')
+            cv2.imwrite(frame_path, frame)
+
+        # Save numpy data for aligned crops
+        np.save(os.path.join(output_directory, 'aligned_crops.npy'), aligned_crops)
+
+    # Save average crop as a PNG image and numpy file if not None
+    if average_crop is not None:
+        average_crop_path = os.path.join(output_directory, 'average_crop.png')
+        cv2.imwrite(average_crop_path, average_crop)
+
+        # Save numpy data for average crop
+        np.save(os.path.join(output_directory, 'average_crop.npy'), average_crop)
+
+    # Save average blur kernels list as individual frames if not None
+    if average_blur_kernels_list is not None:
+        blur_kernels_dir = os.path.join(output_directory, 'dir_average_blur_kernels')
+        if not os.path.exists(blur_kernels_dir):
+            os.makedirs(blur_kernels_dir)
+
+        for i, kernel in enumerate(average_blur_kernels_list):
+            kernel_path = os.path.join(blur_kernels_dir, f'kernel_{i:04d}.png')
+            cv2.imwrite(kernel_path, kernel)
+
+        # Save numpy data for average blur kernels list
+        np.save(os.path.join(output_directory, 'average_blur_kernels_list.npy'), average_blur_kernels_list)
+
+    # Save deblurred crops as a video and individual frames if not None
+    if deblurred_crops_list is not None:
+        deblurred_video_path = os.path.join(output_directory, 'deblurred_crops.mp4')
+        height, width, layers = deblurred_crops_list[0].shape
+        deblurred_video = cv2.VideoWriter(deblurred_video_path, cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
+
+        for frame in deblurred_crops_list:
+            deblurred_video.write(frame)
+
+        deblurred_video.release()
+
+        # Save deblurred crops as individual frames
+        deblurred_frames_dir = os.path.join(output_directory, 'dir_deblurred_crops_frames')
+        if not os.path.exists(deblurred_frames_dir):
+            os.makedirs(deblurred_frames_dir)
+
+        for i, frame in enumerate(deblurred_crops_list):
+            frame_path = os.path.join(deblurred_frames_dir, f'frame_{i:04d}.png')
+            cv2.imwrite(frame_path, frame)
+
+        # Save numpy data for deblurred crops list
+        np.save(os.path.join(output_directory, 'deblurred_crops_list.npy'), deblurred_crops_list)
+
+# Example usage:
+# aligned_crops = [np.zeros((480, 640, 3), dtype=np.uint8) for _ in range(10)]
+# average_crop = np.zeros((480, 640, 3), dtype=np.uint8)
+# average_blur_kernels_list = [np.zeros((480, 640, 3), dtype=np.uint8) for _ in range(10)]
+# deblurred_crops_list = [np.zeros((480, 640, 3), dtype=np.uint8) for _ in range(10)]
+# save_results(aligned_crops, average_crop, average_blur_kernels_list, deblurred_crops_list, './output_directory')
