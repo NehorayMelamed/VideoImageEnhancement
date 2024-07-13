@@ -51,7 +51,7 @@ plt.pause(2)  # Pause to avoid conflicts with OpenCV
 DEVICE = 0
 # model_file = "RDND_proper/models/NonUniformBlurKernelEstimation/NonUniformBlurKernelEstimation/models/TwoHeads.pkl"
 # model_file = "TwoHeads.pkl"
-model_file = r'C:\Users\dudyk\Documents\RDND_dudy\SHABAK\blur_kernel\TwoHeads.pkl'
+model_file = PARAMETER.Blur_kernel_NubKe_model
 
 def tensor2im(image_tensor, imtype=np.uint8):
 	image_numpy = image_tensor.cpu().float().numpy()
@@ -744,7 +744,7 @@ def find_kernels_NUBKE(blurred_image, output_dir=None, device='cuda:0', model=No
 
     ### Estimate Kernels and Masks ###
     with torch.no_grad():  # Disable gradient computation for inference
-        kernels_estimated, masks_estimated = two_heads(BW2RGB(torch_get_4D(blurry_tensor_to_compute_kernels)))  # Estimate kernels and masks
+        kernels_estimated, masks_estimated = two_heads(BW2RGB(torch_get_4D(blurry_tensor_to_compute_kernels.cuda())))  # Estimate kernels and masks
 
     ### Prepare and Save Kernel Grid Image ###
     kernels_val_n = kernels_estimated[0]  # Extract the first set of estimated kernels
@@ -850,7 +850,7 @@ def get_KernelBasis_Masks_AvgKernel_From_NUBKE(blurred_image, seg_mask, NUBKE_mo
         blurry_tensor_to_compute_kernels = blurred_image ** gamma_factor - 0.5  # Apply gamma correction
 
         ### Estimate Kernels and Masks ###
-        kernels, masks = NUBKE_model(blurry_tensor_to_compute_kernels.unsqueeze(0))  # Estimate kernels and masks
+        kernels, masks = NUBKE_model(blurry_tensor_to_compute_kernels.unsqueeze(0).cuda()) # Estimate kernels and masks
 
     ### Compute Average Kernel ###
     avg_kernel = get_avg_kernel_from_segmentation_masks_and_kernels2(kernels,
@@ -998,7 +998,7 @@ def deblur_image_pipeline_NUBKE(blurred_image,
     kernels_basis_tensor, masks, avg_kernel = get_KernelBasis_Masks_AvgKernel_From_NUBKE(blurred_image, seg_mask, NUBKE_model, gamma_factor=2.2)
 
     ### Deblur the Image ###
-    deblurred_entire_image = get_deblurred_image_from_kernels_and_masks(blurred_image,
+    deblurred_entire_image = get_deblurred_image_from_kernels_and_masks(blurred_image.cuda(),
                                                         kernels_basis_tensor,
                                                         masks,
                                                         avg_kernel,

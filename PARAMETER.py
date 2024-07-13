@@ -7,10 +7,6 @@ OUTPUT = "tweets_per_accounts"
 CAR_LICENSE_PLATE_RECOGNITION = "CAR_LICENSE_PLATE_RECOGNITION"
 
 
-path_GroundingDINO_SwinT_OGC_PY = os.path.join(GROUNDED_SEGMENT_ANYTHING_BASE_PATH, "GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py")
-path_groundingdino_swint_ogc_PTH = os.path.join(GROUNDED_SEGMENT_ANYTHING_BASE_PATH,"groundingdino_swint_ogc.pth")
-path_sam_vit_h_4b8939 = os.path.join(GROUNDED_SEGMENT_ANYTHING_BASE_PATH, "sam_vit_h_4b8939.pth")
-path_ema_ckpt = os.path.join(RDND_BASE_PATH, "EMA", "ckpt")
 
 
 CHECKPOINTS = os.path.join(BASE_PROJECT, "checkpoints")
@@ -34,10 +30,16 @@ RVRT_deblur_shoval_train_py_blur20_TEST1_Step60000 = os.path.join(BASE_PROJECT, 
 DETECTION_DIRECTORY_PATH = os.path.join(BASE_PROJECT, OUTPUT, CAR_LICENSE_PLATE_RECOGNITION)
 
 
+#### NAFNet-width64.yml
+NEFNet_width64 = os.path.join(CHECKPOINTS, "BenDeblur", "NAFNet-width64.yml")
+
 
 #### Model_New_Checkpoints
 Model_New_Checkpoints = os.path.join(BASE_PROJECT, "Model_New_Checkpoints")
 
+
+#### Blur_kernel_NubKe_model
+Blur_kernel_NubKe_model = os.path.join(CHECKPOINTS, "NubKe", "TwoHeads.pkl")
 
 ### Depth map
 
