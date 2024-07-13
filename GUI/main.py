@@ -7,6 +7,7 @@ import cv2
 from PIL import Image, ImageTk
 from datetime import datetime
 from options import DenoiseOptions, DeblurOptions
+from util.video_to_numpy_array import get_video_frames
 
 # Default directory for data
 default_directory = "../data"
@@ -24,8 +25,9 @@ log_colors = {
 def upload_source():
     file_path = filedialog.askopenfilename(initialdir=default_directory, filetypes=[("Video files", "*.mp4;*.avi"), ("All files", "*.*")])
     if file_path:
-        global source_path, displayed_image
+        global source_path, displayed_image, source_data
         source_path = file_path
+        source_data = get_video_frames(file_path)
         cap = cv2.VideoCapture(file_path)
         ret, frame = cap.read()
         if ret:
@@ -57,30 +59,32 @@ def perform_enhancement():
         log_message("Please select at least one denoise or deblur method.", "warning")
 
     for method in selected_denoise:
-        if method == DenoiseOptions.RVRT:
-            denoise_options.perform_RVRT(source_path)
-        if method == DenoiseOptions.DENOISE_YOAV:
-            denoise_options.perform_DENOISE_YOAV(source_path)
-        if method == DenoiseOptions.STABILIZE_ENTIRE_FRAME:
-            denoise_options.perform_STABILIZE_ENTIRE_FRAME(source_path)
-        if method == DenoiseOptions.STABLE_OBJECT_COTRACKER:
-            denoise_options.perform_STABLE_OBJECT_COTRACKER(source_path)
-        if method == DenoiseOptions.STABLE_OBJECT_OPTICAL_FLOW:
-            denoise_options.perform_STABLE_OBJECT_OPTICAL_FLOW(source_path)
-        if method == DenoiseOptions.STABLE_OBJECT_CLASSIC_TRACKER:
-            denoise_options.perform_STABLE_OBJECT_CLASSIC_TRACKER(source_path)
+        if method == DenoiseOptions.SCC:
+            denoise_options.perform_SCC(source_path, source_data)
+        if method == DenoiseOptions.ECC:
+            denoise_options.perform_ECC(source_path, source_data)
+        if method == DenoiseOptions.FEATURE_BASED:
+            denoise_options.perform_FEATURE_BASED(source_path, source_data)
+        if method == DenoiseOptions.OPTICAL_FLOW:
+            denoise_options.perform_OPTICAL_FLOW(source_path, source_data)
+        if method == DenoiseOptions.DENOISE_COT:
+            denoise_options.perform_DENOISE_COT(source_path, source_data)
+        if method == DenoiseOptions.RV_CLASSIC:
+            denoise_options.perform_RV_CLASSIC(source_path, source_data)
+        if method == DenoiseOptions.DENOISE_YOV:
+            denoise_options.perform_DENOISE_YOV(source_path, source_data)
 
     for method in selected_deblur:
-        if method == DeblurOptions.RVRT:
-            deblur_options.perform_RVRT(source_path)
-        if method == DeblurOptions.REALBASICVSR:
-            deblur_options.perform_REALBASICVSR(source_path)
-        if method == DeblurOptions.RVRT_OMER:
-            deblur_options.perform_RVRT_OMER(source_path)
+        if method == DeblurOptions.RV_OM:
+            deblur_options.perform_RV_OM(source_path, source_data)
         if method == DeblurOptions.NAFNET:
-            deblur_options.perform_NAFNET(source_path)
-        if method == DeblurOptions.BLUR_KERNEL_DEBLUR:
-            deblur_options.perform_BLUR_KERNEL_DEBLUR(source_path)
+            deblur_options.perform_NAFNET(source_path, source_data)
+        if method == DeblurOptions.NUBKE:
+            deblur_options.perform_NUBKE(source_path, source_data)
+        if method == DeblurOptions.NUMBKE2WIN:
+            deblur_options.perform_NUMBKE2WIN(source_path, source_data)
+        if method == DeblurOptions.UNSUPERWIN:
+            deblur_options.perform_UNSUPERWIN(source_path, source_data)
 
 # Function to log messages with different levels
 def log_message(message, level="info"):
@@ -123,6 +127,7 @@ notebook.add(log_tab, text="Log")
 
 # Variables
 source_path = ""
+source_data = []
 displayed_image = None
 
 # Create and place widgets in the main tab
@@ -140,9 +145,8 @@ denoise_label = ttk.Label(denoise_frame, text="Select Denoise Methods:", font=('
 denoise_label.pack(anchor='w')
 
 denoise_vars = []
-denoise_options_list = [DenoiseOptions.RVRT, DenoiseOptions.DENOISE_YOAV, DenoiseOptions.STABILIZE_ENTIRE_FRAME,
-                        DenoiseOptions.STABLE_OBJECT_COTRACKER, DenoiseOptions.STABLE_OBJECT_OPTICAL_FLOW,
-                        DenoiseOptions.STABLE_OBJECT_CLASSIC_TRACKER]
+denoise_options_list = [DenoiseOptions.SCC, DenoiseOptions.ECC, DenoiseOptions.FEATURE_BASED,
+                        DenoiseOptions.OPTICAL_FLOW, DenoiseOptions.DENOISE_COT, DenoiseOptions.RV_CLASSIC, DenoiseOptions.DENOISE_YOV]
 for option in denoise_options_list:
     var = tk.IntVar(value=0)
     chk = ttk.Checkbutton(denoise_frame, text=option, variable=var, bootstyle="success-round-toggle")
@@ -157,8 +161,8 @@ deblur_label = ttk.Label(deblur_frame, text="Select Deblur Methods:", font=('Ari
 deblur_label.pack(anchor='w')
 
 deblur_vars = []
-deblur_options_list = [DeblurOptions.RVRT, DeblurOptions.REALBASICVSR, DeblurOptions.RVRT_OMER,
-                       DeblurOptions.NAFNET, DeblurOptions.BLUR_KERNEL_DEBLUR]
+deblur_options_list = [DeblurOptions.RV_OM, DeblurOptions.NAFNET, DeblurOptions.NUBKE,
+                       DeblurOptions.NUMBKE2WIN, DeblurOptions.UNSUPERWIN]
 for option in deblur_options_list:
     var = tk.IntVar(value=0)
     chk = ttk.Checkbutton(deblur_frame, text=option, variable=var, bootstyle="success-round-toggle")
