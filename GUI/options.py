@@ -1,10 +1,22 @@
 import os
+import sys
 from pathlib import Path
 import mimetypes
 import tkinter as tk
-from tkinter import filedialog
 
 import PARAMETER
+
+### deblur
+sys.path.append(f"{PARAMETER.BASE_PROJECT}/Omer")
+sys.path.append(f"{PARAMETER.BASE_PROJECT}/Omer/to_neo")
+sys.path.append(f"{PARAMETER.BASE_PROJECT}/Omer/RVRT_deblur_inference.py")
+
+
+
+### Ben - NafNet
+
+
+
 
 
 class InputType:
@@ -50,9 +62,9 @@ class DenoiseOptions:
                                                               input_name=input_name)
         self.log_function(f"Performing RVRT denoise on: {input_source}", "info")
         # Example function call (replace with actual function)
-        run_rvrt_denoise(input_source, path_to_directory_output)
-        save_results(self.log_function, path_to_directory_output,
-                     {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        # run_rvrt_denoise(input_source, path_to_directory_output)
+        # save_results(self.log_function, path_to_directory_output,
+        #              {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
 
     def perform_DENOISE_YOAV(self, input_source):
         DenoiseWindow(tk.Tk(), self.log_function, input_source)
@@ -64,9 +76,9 @@ class DenoiseOptions:
                                                               input_name=input_name)
         self.log_function(f"Performing stabilize entire frame on: {input_source}", "info")
         # Example function call (replace with actual function)
-        run_stabilize_entire_frame(input_source, path_to_directory_output)
-        save_results(self.log_function, path_to_directory_output,
-                     {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        # run_stabilize_entire_frame(input_source, path_to_directory_output)
+        # save_results(self.log_function, path_to_directory_output,
+        #              {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
 
     def perform_STABLE_OBJECT_COTRACKER(self, input_source):
         input_name = os.path.basename(input_source).split('.')[0]
@@ -75,9 +87,9 @@ class DenoiseOptions:
                                                               input_name=input_name)
         self.log_function(f"Performing stable object 'with co-tracker' on: {input_source}", "info")
         # Example function call (replace with actual function)
-        run_stable_object_cotracker(input_source, path_to_directory_output)
-        save_results(self.log_function, path_to_directory_output,
-                     {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        # run_stable_object_cotracker(input_source, path_to_directory_output)
+        # save_results(self.log_function, path_to_directory_output,
+        #              {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
 
     def perform_STABLE_OBJECT_OPTICAL_FLOW(self, input_source):
         input_name = os.path.basename(input_source).split('.')[0]
@@ -86,9 +98,9 @@ class DenoiseOptions:
                                                               input_name=input_name)
         self.log_function(f"Performing stable object with optical flow tracker on: {input_source}", "info")
         # Example function call (replace with actual function)
-        run_stable_object_optical_flow(input_source, path_to_directory_output)
-        save_results(self.log_function, path_to_directory_output,
-                     {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        # run_stable_object_optical_flow(input_source, path_to_directory_output)
+        # save_results(self.log_function, path_to_directory_output,
+        #              {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
 
     def perform_STABLE_OBJECT_CLASSIC_TRACKER(self, input_source):
         input_name = os.path.basename(input_source).split('.')[0]
@@ -97,9 +109,9 @@ class DenoiseOptions:
                                                               input_name=input_name)
         self.log_function(f"Performing stable object 'classic tracker' on: {input_source}", "info")
         # Example function call (replace with actual function)
-        run_stable_object_classic_tracker(input_source, path_to_directory_output)
-        save_results(self.log_function, path_to_directory_output,
-                     {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        # run_stable_object_classic_tracker(input_source, path_to_directory_output)
+        # save_results(self.log_function, path_to_directory_output,
+        #              {"denoise_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
 
 
 class DeblurOptions:
@@ -118,9 +130,9 @@ class DeblurOptions:
                                                               input_name=input_name)
         self.log_function(f"Performing RVRT deblur on: {input_source}", "info")
         # Example function call (replace with actual function)
-        run_rvrt_deblur(input_source, path_to_directory_output)
-        save_results(self.log_function, path_to_directory_output,
-                     {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        # run_rvrt_deblur(input_source, path_to_directory_output)
+        # save_results(self.log_function, path_to_directory_output,
+        #              {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
 
     def perform_REALBASICVSR(self, input_source):
         input_name = os.path.basename(input_source).split('.')[0]
@@ -128,19 +140,25 @@ class DeblurOptions:
                                                               input_name=input_name)
         self.log_function(f"Performing RealBasicVSR deblur on: {input_source}", "info")
         # Example function call (replace with actual function)
-        run_realbasicvsr_deblur(input_source, path_to_directory_output)
-        save_results(self.log_function, path_to_directory_output,
-                     {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        # run_realbasicvsr_deblur(input_source, path_to_directory_output)
+        # save_results(self.log_function, path_to_directory_output,
+        #              {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
 
     def perform_RVRT_OMER(self, input_source):
         input_name = os.path.basename(input_source).split('.')[0]
         path_to_directory_output = build_directory_to_service(base_directory="DEBLUR", service_name="RVRT_OMER",
                                                               input_name=input_name)
         self.log_function(f"Performing RvrtOmer deblur on: {input_source}", "info")
+        from Omer.to_neo.main_deblur import main_deblur
+
         # Example function call (replace with actual function)
-        run_rvrtomer_deblur(input_source, path_to_directory_output)
-        save_results(self.log_function, path_to_directory_output,
-                     {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        if main_deblur(video_path=input_source, use_roi=False, save_videos=True,
+                    blur_video_mp4=os.path.join(path_to_directory_output, "blur_video.mp4"),
+                    deblur_video_mp4=os.path.join(path_to_directory_output, "deblur_video.mp4")
+                    ) is False:
+            self.log_function('Failed to perform deblur omer')
+            return False
+
 
     def perform_NAFNET(self, input_source):
         from ben_deblur.ImageDeBlur.deblur_functions import main_nafnet_deblur
@@ -150,14 +168,10 @@ class DeblurOptions:
                                                               input_name=input_name)
         self.log_function(f"Performing NafNet deblur on: {input_source}", "info")
 
-        main_nafnet_deblur(video_path=input_source, output_folder=path_to_directory_output)
+        if main_nafnet_deblur(video_path=input_source, output_folder=path_to_directory_output) is False:
+            self.log_function("failed to perform nafnet")
 
 
-
-        # Example function call (replace with actual function)
-        run_nafnet_deblur(input_source, path_to_directory_output)
-        save_results(self.log_function, path_to_directory_output,
-                     {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
 
     def perform_BLUR_KERNEL_DEBLUR(self, input_source):
         input_name = os.path.basename(input_source).split('.')[0]
@@ -165,9 +179,9 @@ class DeblurOptions:
                                                               service_name="BLUR_KERNEL_DEBLUR", input_name=input_name)
         self.log_function(f"Performing Blur kernel and deblur on: {input_source}", "info")
         # Example function call (replace with actual function)
-        run_blur_kernel_deblur(input_source, path_to_directory_output)
-        save_results(self.log_function, path_to_directory_output,
-                     {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
+        # run_blur_kernel_deblur(input_source, path_to_directory_output)
+        # save_results(self.log_function, path_to_directory_output,
+        #              {"deblur_result.mp4": b"dummy data", "segmentation.pt": b"dummy data"})
 
 
 def save_results(log_function, output_directory, results):
@@ -198,50 +212,6 @@ def build_directory_to_service(base_directory, service_name, input_name):
 
     return path_to_output_directory_service_with_input_name
 
-
-# Example placeholder functions (replace with actual implementations)
-def run_rvrt_denoise(input_source, output_directory):
-    pass
-
-
-def run_denoise_yoav(input_source, output_directory):
-    pass
-
-
-def run_stabilize_entire_frame(input_source, output_directory):
-    pass
-
-
-def run_stable_object_cotracker(input_source, output_directory):
-    pass
-
-
-def run_stable_object_optical_flow(input_source, output_directory):
-    pass
-
-
-def run_stable_object_classic_tracker(input_source, output_directory):
-    pass
-
-
-def run_rvrt_deblur(input_source, output_directory):
-    pass
-
-
-def run_realbasicvsr_deblur(input_source, output_directory):
-    pass
-
-
-def run_rvrtomer_deblur(input_source, output_directory):
-    pass
-
-
-def run_nafnet_deblur(input_source, output_directory):
-    pass
-
-
-def run_blur_kernel_deblur(input_source, output_directory):
-    pass
 
 
 class DenoiseWindow:

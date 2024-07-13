@@ -48,8 +48,9 @@ def perform_enhancement():
         log_message("Please upload a source file before performing enhancements.", "danger")
         return
 
-    selected_denoise = [var.get() for var in denoise_vars if var.get()]
-    selected_deblur = [var.get() for var in deblur_vars if var.get()]
+    selected_denoise = [option for var, option in zip(denoise_vars, denoise_options_list) if var.get()]
+    selected_deblur = [option for var, option in zip(deblur_vars, deblur_options_list) if var.get()]
+
     if selected_denoise or selected_deblur:
         log_message(f"Enhancement selected: Denoise - {selected_denoise}, Deblur - {selected_deblur}, Source Path - {source_path}", "info")
     else:
@@ -58,27 +59,27 @@ def perform_enhancement():
     for method in selected_denoise:
         if method == DenoiseOptions.RVRT:
             denoise_options.perform_RVRT(source_path)
-        elif method == DenoiseOptions.DENOISE_YOAV:
+        if method == DenoiseOptions.DENOISE_YOAV:
             denoise_options.perform_DENOISE_YOAV(source_path)
-        elif method == DenoiseOptions.STABILIZE_ENTIRE_FRAME:
+        if method == DenoiseOptions.STABILIZE_ENTIRE_FRAME:
             denoise_options.perform_STABILIZE_ENTIRE_FRAME(source_path)
-        elif method == DenoiseOptions.STABLE_OBJECT_COTRACKER:
+        if method == DenoiseOptions.STABLE_OBJECT_COTRACKER:
             denoise_options.perform_STABLE_OBJECT_COTRACKER(source_path)
-        elif method == DenoiseOptions.STABLE_OBJECT_OPTICAL_FLOW:
+        if method == DenoiseOptions.STABLE_OBJECT_OPTICAL_FLOW:
             denoise_options.perform_STABLE_OBJECT_OPTICAL_FLOW(source_path)
-        elif method == DenoiseOptions.STABLE_OBJECT_CLASSIC_TRACKER:
+        if method == DenoiseOptions.STABLE_OBJECT_CLASSIC_TRACKER:
             denoise_options.perform_STABLE_OBJECT_CLASSIC_TRACKER(source_path)
 
     for method in selected_deblur:
         if method == DeblurOptions.RVRT:
             deblur_options.perform_RVRT(source_path)
-        elif method == DeblurOptions.REALBASICVSR:
+        if method == DeblurOptions.REALBASICVSR:
             deblur_options.perform_REALBASICVSR(source_path)
-        elif method == DeblurOptions.RVRT_OMER:
+        if method == DeblurOptions.RVRT_OMER:
             deblur_options.perform_RVRT_OMER(source_path)
-        elif method == DeblurOptions.NAFNET:
+        if method == DeblurOptions.NAFNET:
             deblur_options.perform_NAFNET(source_path)
-        elif method == DeblurOptions.BLUR_KERNEL_DEBLUR:
+        if method == DeblurOptions.BLUR_KERNEL_DEBLUR:
             deblur_options.perform_BLUR_KERNEL_DEBLUR(source_path)
 
 # Function to log messages with different levels
@@ -143,7 +144,7 @@ denoise_options_list = [DenoiseOptions.RVRT, DenoiseOptions.DENOISE_YOAV, Denois
                         DenoiseOptions.STABLE_OBJECT_COTRACKER, DenoiseOptions.STABLE_OBJECT_OPTICAL_FLOW,
                         DenoiseOptions.STABLE_OBJECT_CLASSIC_TRACKER]
 for option in denoise_options_list:
-    var = tk.StringVar(value=option)
+    var = tk.IntVar(value=0)
     chk = ttk.Checkbutton(denoise_frame, text=option, variable=var, bootstyle="success-round-toggle")
     chk.pack(anchor='w', padx=10, pady=2)
     denoise_vars.append(var)
@@ -159,7 +160,7 @@ deblur_vars = []
 deblur_options_list = [DeblurOptions.RVRT, DeblurOptions.REALBASICVSR, DeblurOptions.RVRT_OMER,
                        DeblurOptions.NAFNET, DeblurOptions.BLUR_KERNEL_DEBLUR]
 for option in deblur_options_list:
-    var = tk.StringVar(value=option)
+    var = tk.IntVar(value=0)
     chk = ttk.Checkbutton(deblur_frame, text=option, variable=var, bootstyle="success-round-toggle")
     chk.pack(anchor='w', padx=10, pady=2)
     deblur_vars.append(var)
