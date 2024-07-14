@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-# from RapidBase.import_all import *
+
 class ImageSegmenter:
     def __init__(self, img_path):
         # Read the original image
@@ -56,8 +56,7 @@ class ImageSegmenter:
                         # Clear points and restart the loop
                         self.points = []
                         break
-
-# image_path = "/home/dudy/Nehoray/segment_anything_base_dir/Grounded-Segment-Anything/outputs/raw_image.jpg"
+#
+# image_path = "/home/nehoray/PycharmProjects/VideoImageEnhancement/data/dgx_data/blur_cars/litle_amount_of_images_resized_crop/00057771.png"
 # img_segmenter = ImageSegmenter(image_path)
 # mask, result = img_segmenter.get_mask()
-#
