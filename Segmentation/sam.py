@@ -2,6 +2,11 @@ import cv2
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+import PARAMETER
+import os
+import sys
+sys.path.append(os.path.join(f"{PARAMETER.BASE_PROJECT}/Segmentation"))
+
 from segment_anything.segment_anything import sam_model_registry, SamPredictor
 
 
@@ -155,11 +160,14 @@ def display_mask_bw(mask):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-# Example usage
-image_path = r'C:\Users\dudyk\PycharmProjects\NehorayWorkSpace\Shaback\models\img.png'
-bbox = (425, 600, 700, 875)  # Example bounding box coordinates
-checkpoint_path = r'C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/sam_vit_h_4b8939.pth'
 
-mask = get_mask_from_bbox(image_path, checkpoint_path, interactive=True)
-display_mask_bw(mask)
-print(mask)
+if __name__ == '__main__':
+
+    # Example usage
+    image_path = r'C:\Users\dudyk\PycharmProjects\NehorayWorkSpace\Shaback\models\img.png'
+    bbox = (425, 600, 700, 875)  # Example bounding box coordinates
+    checkpoint_path = r'C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/sam_vit_h_4b8939.pth'
+
+    mask = get_mask_from_bbox(image_path, checkpoint_path, interactive=True)
+    display_mask_bw(mask)
+    print(mask)
