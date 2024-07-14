@@ -18,8 +18,12 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.misc import NestedTensor
+import PARAMETER
+import os
+import sys
+sys.path.append(os.path.join(f"{PARAMETER.BASE_PROJECT}"))
 
+from Detection.GroundingDINO.groundingdino.util.misc import NestedTensor
 
 class Mlp(nn.Module):
     """Multilayer perceptron."""

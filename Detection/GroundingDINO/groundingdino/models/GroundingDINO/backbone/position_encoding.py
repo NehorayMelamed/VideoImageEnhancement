@@ -21,10 +21,15 @@ Various positional encodings for the transformer.
 """
 import math
 
+
 import torch
 from torch import nn
+import PARAMETER
+import os
+import sys
+sys.path.append(os.path.join(f"{PARAMETER.BASE_PROJECT}"))
 
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.misc import NestedTensor
+from Detection.GroundingDINO.groundingdino.util.misc import NestedTensor
 
 
 class PositionEmbeddingSine(nn.Module):

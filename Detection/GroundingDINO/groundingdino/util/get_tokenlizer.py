@@ -1,3 +1,10 @@
+import sys
+
+import PARAMETER
+
+sys.path.append(f"{PARAMETER.BASE_PROJECT}")
+sys.path.append(f"{PARAMETER.BASE_PROJECT}/Detection/GroundingDINO/groundingdino/models/GroundingDINO")
+
 from transformers import AutoTokenizer, BertModel, BertTokenizer, RobertaModel, RobertaTokenizerFast
 import os
 

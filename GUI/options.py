@@ -1,6 +1,8 @@
 import sys
 import mimetypes
 import tkinter as tk
+
+import AlignClass
 import PARAMETER
 from WienerDeconvolution import WienerDeconvolution
 
@@ -52,12 +54,22 @@ class DenoiseOptions:
         self.log_function = log_function
 
     def perform_SCC(self, input_source, source_data):
-        self.log_function(f"Performing SCC denoise on: {input_source}", "info")
-        # Add implementation here
+        self.log_function(f"Performing Optical Flow denoise on: {input_source}", "info")
+        input_name = os.path.basename(input_source).split('.')[0]
+        path_to_directory_output = build_directory_to_service(base_directory="DENOISE",
+                                                              service_name=DenoiseOptions.SCC,
+                                                              input_name=input_name)
+        aligned_crops, average_crop = AlignClass.align_and_average_frames_using_SCC(source_data)
+        save_results(aligned_crops=aligned_crops, average_crop=average_crop, output_directory=path_to_directory_output)
 
     def perform_ECC(self, input_source, source_data):
-        self.log_function(f"Performing ECC denoise on: {input_source}", "info")
-        # Add implementation here
+        self.log_function(f"Performing Optical Flow denoise on: {input_source}", "info")
+        input_name = os.path.basename(input_source).split('.')[0]
+        path_to_directory_output = build_directory_to_service(base_directory="DENOISE",
+                                                              service_name=DenoiseOptions.ECC,
+                                                              input_name=input_name)
+        aligned_crops, average_crop = AlignClass.align_and_average_frames_using_ECC(source_data)
+        save_results(aligned_crops=aligned_crops, average_crop=average_crop, output_directory=path_to_directory_output)
 
     def perform_FEATURE_BASED(self, input_source, source_data):
         self.log_function(f"Performing FeatureBased denoise on: {input_source}", "info")
@@ -92,7 +104,7 @@ class DenoiseOptions:
 
     def perform_RV_CLASSIC(self, input_source, source_data):
         self.log_function(f"Performing RV-Classic denoise on: {input_source}", "info")
-        # Add implementation here
+        return None
 
     def perform_DENOISE_YOV(self, input_source, source_data):
         input_name = os.path.basename(input_source).split('.')[0]
@@ -102,6 +114,8 @@ class DenoiseOptions:
         # Example function call (replace with actual function)
         # run_denoise_yov(source_data, path_to_directory_output)
 
+
+    ###### Single image  #####
 
 class DeblurOptions:
     RV_OM = "RV-Om"
@@ -154,8 +168,9 @@ class DeblurOptions:
         input_name = os.path.basename(input_source).split('.')[0]
         path_to_directory_output = build_directory_to_service(base_directory="DEBLUR", service_name=DeblurOptions.NUBKE,
                                                               input_name=input_name)
-        average_blur_kernels_list, deblurred_crops_list = WienerDeconvolution.get_blur_kernel_using_NUBKE_and_deblur_using_Wiener_all_options()
-        save_results(average_blur_kernels_list=average_blur_kernels_list, deblurred_crops_list=deblurred_crops_list,
+        deblurred_images, string_explanations = WienerDeconvolution.get_blur_kernel_using_NUBKE_and_deblur_using_Wiener_all_options(
+            source_data)
+        save_results(average_blur_kernels_list=deblurred_images,
                      output_directory=path_to_directory_output)
 
     def perform_UNSUPERWIN(self, input_source, source_data):

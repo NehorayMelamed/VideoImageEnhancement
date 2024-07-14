@@ -22,7 +22,12 @@ import torch
 import torch.utils.checkpoint as checkpoint
 from torch import Tensor, nn
 
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.misc import inverse_sigmoid
+import PARAMETER
+import os
+import sys
+sys.path.append(os.path.join(f"{PARAMETER.BASE_PROJECT}"))
+
+from Detection.GroundingDINO.groundingdino.util.misc import inverse_sigmoid
 
 from .fuse_modules import BiAttentionBlock
 from .ms_deform_attn import MultiScaleDeformableAttention as MSDeformAttn

@@ -1,3 +1,7 @@
+import os
+import sys
+import PARAMETER
+sys.path.append(os.path.join(PARAMETER.BASE_PROJECT, "Detection"))
 from GroundingDINO.groundingdino.util.inference import load_model, load_image, predict, annotate
 import cv2
 
@@ -22,11 +26,12 @@ def display_results(image_path, boxes, logits, phrases):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-# Example usage
-model = load_model("GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py", r"C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/groundingdino_swint_ogc.pth")
-model = model.to('cuda:0')
-IMAGE_PATH = r"C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/img_1.png"
-TEXT_PROMPT = "license plate . car ."
+if __name__ == '__main__':
+    # Example usage
+    model = load_model("GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py", r"C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/groundingdino_swint_ogc.pth")
+    model = model.to('cuda:0')
+    IMAGE_PATH = r"C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/img_1.png"
+    TEXT_PROMPT = "license plate . car ."
 
-boxes, logits, phrases = detect_objects(model, IMAGE_PATH, TEXT_PROMPT)
-display_results(IMAGE_PATH, boxes, logits, phrases)
+    boxes, logits, phrases = detect_objects(model, IMAGE_PATH, TEXT_PROMPT)
+    display_results(IMAGE_PATH, boxes, logits, phrases)

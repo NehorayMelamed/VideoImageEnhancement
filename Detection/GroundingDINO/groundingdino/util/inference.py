@@ -8,11 +8,11 @@ from PIL import Image
 from torchvision.ops import box_convert
 import bisect
 
-import VideoImageEnhancement.Detection.GroundingDINO.groundingdino.datasets.transforms as T
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.models import build_model
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.misc import clean_state_dict
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.slconfig import SLConfig
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.utils import get_phrases_from_posmap
+import Detection.GroundingDINO.groundingdino.datasets.transforms as T
+from Detection.GroundingDINO.groundingdino.models import build_model
+from Detection.GroundingDINO.groundingdino.util.misc import clean_state_dict
+from Detection.GroundingDINO.groundingdino.util.slconfig import SLConfig
+from Detection.GroundingDINO.groundingdino.util.utils import get_phrases_from_posmap
 
 # ----------------------------------------------------------------------------------------------------------------------
 # OLD API

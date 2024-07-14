@@ -1,6 +1,6 @@
 from ultralytics import YOLO
 import cv2
-
+import PARAMETER
 
 def get_bounding_boxes(image_path, model_path, classes, display_image=False):
     # Initialize the YOLO model
@@ -36,11 +36,15 @@ def get_bounding_boxes(image_path, model_path, classes, display_image=False):
     return bounding_boxes
 
 
-# Example usage:
-image_path = "C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/img.png"
-model_path = "C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/yolov8x-worldv2.pt"
-classes = ["person", "car", "license-plate"]
-display_image = True
 
-bounding_boxes = get_bounding_boxes(image_path, model_path, classes, display_image)
-print(bounding_boxes)
+
+if __name__ == '__main__':
+
+    # Example usage:
+    image_path = "C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/img.png"
+    model_path = "C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/yolov8x-worldv2.pt"
+    classes = ["person", "car", "license-plate"]
+    display_image = True
+
+    bounding_boxes = get_bounding_boxes(image_path, model_path, classes, display_image)
+    print(bounding_boxes)

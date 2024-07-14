@@ -17,14 +17,18 @@
 import copy
 from typing import List
 
+import PARAMETER
+import sys
+sys.path.append(f"{PARAMETER.BASE_PROJECT}")
+sys.path.append(f"{PARAMETER.BASE_PROJECT}/Detection/GroundingDINO/groundingdino/models/GroundingDINO")
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torchvision.ops.boxes import nms
-from transformers import AutoTokenizer, BertModel, BertTokenizer, RobertaModel, RobertaTokenizerFast
+# from transformers import AutoTokenizer, BertModel, BertTokenizer, RobertaModel, RobertaTokenizerFast
 
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util import box_ops, get_tokenlizer
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.misc import (
+from Detection.GroundingDINO.groundingdino.util import box_ops, get_tokenlizer
+from Detection.GroundingDINO.groundingdino.util.misc import (
     NestedTensor,
     accuracy,
     get_world_size,
@@ -33,9 +37,9 @@ from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.misc impor
     is_dist_avail_and_initialized,
     nested_tensor_from_tensor_list,
 )
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.utils import get_phrases_from_posmap
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.visualizer import COCOVisualizer
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.vl_utils import create_positive_map_from_span
+from Detection.GroundingDINO.groundingdino.util.utils import get_phrases_from_posmap
+from Detection.GroundingDINO.groundingdino.util.visualizer import COCOVisualizer
+from Detection.GroundingDINO.groundingdino.util.vl_utils import create_positive_map_from_span
 
 from ..registry import MODULE_BUILD_FUNCS
 from .backbone import build_backbone

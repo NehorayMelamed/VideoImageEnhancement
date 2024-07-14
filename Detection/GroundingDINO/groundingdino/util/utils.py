@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from transformers import AutoTokenizer
 
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.slconfig import SLConfig
+from Detection.GroundingDINO.groundingdino.util.slconfig import SLConfig
 
 
 def slprint(x, name="x"):

@@ -24,7 +24,7 @@ import torchvision
 from torch import nn
 from torchvision.models._utils import IntermediateLayerGetter
 
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.misc import NestedTensor, clean_state_dict, is_main_process
+from Detection.GroundingDINO.groundingdino.util.misc import NestedTensor, clean_state_dict, is_main_process
 
 from .position_encoding import build_position_encoding
 from .swin_transformer import build_swin_transformer

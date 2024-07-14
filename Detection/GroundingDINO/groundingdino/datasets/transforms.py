@@ -4,14 +4,19 @@ Transforms and data augmentation for both image + bbox.
 """
 import os
 import random
-
+import sys
 import PIL
 import torch
 import torchvision.transforms as T
 import torchvision.transforms.functional as F
+import PARAMETER
 
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.box_ops import box_xyxy_to_cxcywh
-from VideoImageEnhancement.Detection.GroundingDINO.groundingdino.util.misc import interpolate
+sys.path.append(f"{PARAMETER.BASE_PROJECT}")
+sys.path.append(f"{PARAMETER.BASE_PROJECT}/Detection/GroundingDINO/groundingdino/models/GroundingDINO")
+
+
+from Detection.GroundingDINO.groundingdino.util.box_ops import box_xyxy_to_cxcywh
+from Detection.GroundingDINO.groundingdino.util.misc import interpolate
 
 
 def crop(image, target, region):
