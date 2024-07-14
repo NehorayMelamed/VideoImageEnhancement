@@ -1,37 +1,12 @@
 
 
-
-
-# ### Imports: ###
-# from scipy.interpolate import griddata
-# import os
-# import numpy as np
-# import cv2
-# import matplotlib.pyplot as plt
-# from skimage.transform import resize, warp
-# from skimage.measure import ransac
-# from skimage.transform import AffineTransform, ProjectiveTransform
-# from skimage.feature import match_descriptors, ORB
-# from skimage.color import rgb2gray
-#
-#
-# ### Rapid Base Imports: ###
-# import matplotlib
-# from Rapid_Base.import_all import *
-# from Rapid_Base.Anvil._transforms.shift_matrix_subpixel import _shift_matrix_subpixel_fft_batch_with_channels
-# import torchvision.transforms as transforms
-# from torchvision.models.optical_flow import raft_large
-#
-# matplotlib.use('TkAgg')
-# from SHABAK.VideoImageEnhancement.Tracking.co_tracker.co_tracker import *
-# from scipy.optimize import minimize
-# import matplotlib.path as mpath
-
 ### Imports: ###
 from RapidBase.import_all import *
 from Utils import *
 from RapidBase.Anvil._transforms.shift_matrix_subpixel import _shift_matrix_subpixel_fft_batch_with_channels
 from Tracking.co_tracker.co_tracker import *
+from Super_ECC.Opgal_Isolated_Utils import *
+from ECC_Segmentation.ECC_layer_points_segmentation import ECC_Layer_Torch_Points_Batch as ECC_Layer_Torch_Points_Batch_Actual
 
 class AlignClass:
 
@@ -1821,17 +1796,6 @@ class AlignClass:
             imshow_video(aligned_frames, FPS=25, frame_stride=1)
             imshow_np(avg_frame, title='Averaged Aligned Frame')  # Display averaged frame
 
-    @staticmethod
-    def align_and_average_frames_using_ECC(frames, reference_frame=0, input_method=None, user_input=None):
-        #TODO: implement ECC alignment and averaging here. don't forget expanding to super resolution
-        bla = 1
-        return stabilized_frames, average_frame
-
-    @staticmethod
-    def align_and_average_frames_using_SCC(frames, reference_frame=0, input_method=None, user_input=None):
-        # TODO: implement SCC alignment and averaging here. don't forget expanding to super resolution
-        bla = 1
-        return stabilized_frames, average_frame
 
     @staticmethod
     def align_and_average_frames_using_FeatureBased(frames, reference_frame=None, input_method=None, user_input=None):
@@ -2864,6 +2828,224 @@ class AlignClass:
             test_functions[test_function_method](frames)  # Call the corresponding test function
         else:  # If test_name is not valid
             print(f"Invalid test name: {test_function_method}")  # Print error message
+
+    @staticmethod
+    def align_and_average_frames_using_ECC(frames, reference_frame=None, input_method=None, user_input=None,
+                                           flag_pre_align_using_SCC=False):
+        ### Get Reference Frame: ###
+        if reference_frame is None:
+            reference_frame = frames[0]  # If reference_frame is not provided, use the first frame
+        H, W = reference_frame.shape[0:2]  # Get frame dimensions
+
+        ### Get Region From User: ###
+        initial_BB_XYXY, initial_polygon_points, initial_segmentation_mask, initial_grid_points, flag_no_input = user_input_to_all_input_types(
+            user_input,
+            input_method=input_method,
+            input_shape=(H, W))
+        segmentation_mask_tensor = torch.tensor(initial_segmentation_mask).unsqueeze(0).unsqueeze(0)
+
+        ### PreAlign Using SCC: ###
+        if flag_pre_align_using_SCC:
+            frames, _ = AlignClass.align_and_average_frames_using_SCC(frames[0:25], reference_frame)
+            torch.cuda.empty_cache()
+
+        ### Initialize Parameters For ECC: ###
+        input_tensor_RGB = torch.cat([numpy_to_torch(frame).unsqueeze(0).cuda() for frame in frames])
+        input_tensor_BW = RGB2BW(input_tensor_RGB)
+        number_of_frames_per_batch = input_tensor_BW.shape[0]
+        H, W = input_tensor_BW.shape[-2:]
+        total_number_of_pixels = H * W
+        reference_tensor = input_tensor_BW[-1:]
+        precision = torch.float
+
+        ### Initialize ECC Layer: ###
+        ECC_layer_object = ECC_Layer_Torch_Points_Batch_Actual(input_tensor_BW[0:number_of_frames_per_batch],
+                                                               reference_tensor,
+                                                               number_of_iterations_per_level=200,
+                                                               number_of_levels=1,
+                                                               transform_string='homography',
+                                                               number_of_pixels_to_use=total_number_of_pixels,
+                                                               delta_p_init=None,
+                                                               precision=precision)
+
+        ### Perform ECC: ###
+        aligned_frames, H_matrix = ECC_layer_object.forward_iterative(input_tensor_RGB,
+                                                                      input_tensor_BW.type(precision),
+                                                                      reference_tensor.type(precision),
+                                                                      max_shift_threshold=0.6e-4,
+                                                                      flag_print=False,
+                                                                      delta_p_init=None,
+                                                                      number_of_images_per_batch=5,
+                                                                      flag_calculate_gradient_in_advance=False,
+                                                                      segmentation_mask=segmentation_mask_tensor.bool())
+
+        ### Get Crops: ###
+        X0, Y0, X1, Y1 = initial_BB_XYXY
+        aligned_frames = torch_to_numpy(aligned_frames)
+        average_crop = np.mean(aligned_frames[:, Y0:Y1, X0:X1], axis=0)
+        aligned_crops = [aligned_frames[i][Y0:Y1, X0:X1] for i in np.arange(len(aligned_frames))]
+
+        return aligned_crops, average_crop
+
+    @staticmethod
+    def test_align_crops_using_ECC(frames, flag_plot=False):
+        ### Apply random translation to frames: ###
+        frames = AlignClass.apply_random_translation_to_images(frames,
+                                                               max_translation=10)  # Apply random translation to frames
+
+        ### Get Parameters To ECC: ###
+        input_tensor_RGB = torch.cat([numpy_to_torch(frame).unsqueeze(0).cuda() for frame in frames])
+        input_tensor_BW = RGB2BW(input_tensor_RGB)
+        number_of_frames_per_batch = input_tensor_BW.shape[0]
+        H, W = input_tensor_BW.shape[-2:]
+        total_number_of_pixels = H * W
+        # number_of_pixels_to_use = int(1 * segmentation_mask_tensor[0].sum())
+        # number_of_batches = input_tensor_BW.shape[0] / number_of_frames_per_batch
+        reference_tensor = input_tensor_BW[-1:]
+        precision = torch.float
+
+        ### Get Segmentation Mask: ###
+        reference_frame = frames[0]
+        BB_XYXY = draw_bounding_box(reference_frame)
+        BB_XYXY, polygon_points, segmentation_mask, grid_points, flag_no_input = user_input_to_all_input_types(
+            user_input=BB_XYXY, input_method='BB', input_shape=(H, W))
+        segmentation_mask_tensor = torch.tensor(segmentation_mask).unsqueeze(0).unsqueeze(0)
+
+        ### PreProcess With SCC: ###
+        frames, _ = AlignClass.align_and_average_frames_using_SCC(frames[0:25], reference_frame)
+        torch.cuda.empty_cache()
+        input_tensor_RGB = torch.cat([numpy_to_torch(frame).unsqueeze(0).cuda() for frame in frames])
+        input_tensor_BW = RGB2BW(input_tensor_RGB)
+        number_of_frames_per_batch = input_tensor_BW.shape[0]
+        H, W = input_tensor_BW.shape[-2:]
+        total_number_of_pixels = H * W
+        reference_tensor = input_tensor_BW[-1:]
+        precision = torch.float
+
+        ### Initialize ECC Layer: ###
+        ECC_layer_object = ECC_Layer_Torch_Points_Batch_Actual(input_tensor_BW[0:number_of_frames_per_batch],
+                                                               reference_tensor,
+                                                               number_of_iterations_per_level=200,
+                                                               number_of_levels=1,
+                                                               transform_string='homography',
+                                                               number_of_pixels_to_use=total_number_of_pixels,
+                                                               delta_p_init=None,
+                                                               precision=precision)
+
+        ### Perform ECC: ###
+        output_tensor, H_matrix = ECC_layer_object.forward_iterative(input_tensor_RGB,
+                                                                     input_tensor_BW.type(precision),
+                                                                     reference_tensor.type(precision),
+                                                                     max_shift_threshold=0.6e-4,
+                                                                     flag_print=False,
+                                                                     delta_p_init=None,
+                                                                     number_of_images_per_batch=5,
+                                                                     flag_calculate_gradient_in_advance=False,
+                                                                     segmentation_mask=segmentation_mask_tensor.bool())
+        imshow_torch_video(output_tensor, FPS=10)
+
+        return output_tensor
+
+    @staticmethod
+    def test_align_crops_using_SCC(frames, flag_plot=False):
+        ### Apply random translation to frames: ###
+        frames = AlignClass.apply_random_translation_to_images(frames,
+                                                               max_translation=10)  # Apply random translation to frames
+
+        ### Perform Dudy Cross Correlatio Torch_Layer: ###
+        flag_gaussian_filter = True
+        flag_fftshift_before_median = False
+        flag_median_per_image = True
+        flag_mean_instead_of_median = True
+        flag_zero_out_zero_component_each_CC = False
+        flag_stretch_tensors = True
+        flag_W_matrix_method = 1
+        flag_shift_CC_to_zero = True
+        flag_CC_shift_method = 'bicubic'
+        flag_round_shift_before_shifting_CC = False
+        max_shift = 101
+        max_shift_for_fit = 15
+        W_matrix_circle_radius = 15
+        warp_method = 'bilinear'
+        Super_CC_layer = Super_CC_Layer(flag_gaussian_filter,
+                                        flag_fftshift_before_median,
+                                        flag_median_per_image,
+                                        flag_mean_instead_of_median,
+                                        flag_zero_out_zero_component_each_CC,
+                                        flag_stretch_tensors=flag_stretch_tensors,
+                                        flag_W_matrix_method=flag_W_matrix_method,
+                                        flag_shift_CC_to_zero=flag_shift_CC_to_zero,
+                                        flag_round_shift_before_shifting_CC=flag_round_shift_before_shifting_CC,
+                                        flag_CC_shift_method=flag_CC_shift_method,
+                                        max_shift=max_shift,
+                                        max_shift_for_fit=max_shift_for_fit,
+                                        W_matrix_circle_radius=W_matrix_circle_radius,
+                                        warp_method=warp_method)
+        input_tensor_stretched = torch.cat([numpy_to_torch(frame).unsqueeze(0).cuda() for frame in frames])
+        input_tensor_stretched = RGB2BW(input_tensor_stretched[0:15])
+        shifts_H, shifts_W, input_tensor_aligned_average, input_tensor_aligned = Super_CC_layer.forward(
+            input_tensor_stretched)
+        input_tensor_aligned_np = BW2RGB(torch_to_numpy(input_tensor_aligned))
+        aligned_frames = numpy_to_list(input_tensor_aligned_np)
+        average_frame = BW2RGB(torch_to_numpy(input_tensor_aligned_average[0]))
+        return input_tensor_aligned, input_tensor_aligned_average
+
+    @staticmethod
+    def align_and_average_frames_using_SCC(frames, reference_frame=None, input_method=None, user_input=None):
+        ### Get Reference Frame: ###
+        if reference_frame is None:
+            reference_frame = frames[0]  # If reference_frame is not provided, use the first frame
+        H, W = reference_frame.shape[0:2]  # Get frame dimensions
+
+        ### Get Region From User: ###
+        initial_BB_XYXY, initial_polygon_points, initial_segmentation_mask, initial_grid_points, flag_no_input = user_input_to_all_input_types(
+            user_input,
+            input_method=input_method,
+            input_shape=(H, W))
+        segmentation_mask_tensor = torch.tensor(initial_segmentation_mask).unsqueeze(0)
+
+        ### Get Crop Region: ###
+        X0, Y0, X1, Y1 = initial_BB_XYXY
+        frames_crops = [frames[i][Y0:Y1, X0:X1] for i in range(len(frames))]
+
+        ### Perform Dudy Cross Correlation Torch_Layer: ###
+        flag_gaussian_filter = True
+        flag_fftshift_before_median = False
+        flag_median_per_image = True
+        flag_mean_instead_of_median = True
+        flag_zero_out_zero_component_each_CC = False
+        flag_stretch_tensors = True
+        flag_W_matrix_method = 1
+        flag_shift_CC_to_zero = True
+        flag_CC_shift_method = 'bicubic'
+        flag_round_shift_before_shifting_CC = False
+        max_shift = 101
+        max_shift_for_fit = 15
+        W_matrix_circle_radius = 15
+        warp_method = 'bilinear'
+        Super_CC_layer = Super_CC_Layer(flag_gaussian_filter,
+                                        flag_fftshift_before_median,
+                                        flag_median_per_image,
+                                        flag_mean_instead_of_median,
+                                        flag_zero_out_zero_component_each_CC,
+                                        flag_stretch_tensors=flag_stretch_tensors,
+                                        flag_W_matrix_method=flag_W_matrix_method,
+                                        flag_shift_CC_to_zero=flag_shift_CC_to_zero,
+                                        flag_round_shift_before_shifting_CC=flag_round_shift_before_shifting_CC,
+                                        flag_CC_shift_method=flag_CC_shift_method,
+                                        max_shift=max_shift,
+                                        max_shift_for_fit=max_shift_for_fit,
+                                        W_matrix_circle_radius=W_matrix_circle_radius,
+                                        warp_method=warp_method)
+        input_tensor_stretched = torch.cat([numpy_to_torch(frame).unsqueeze(0).cuda() for frame in frames_crops])
+        input_tensor_stretched = RGB2BW(input_tensor_stretched)
+        shifts_H, shifts_W, input_tensor_aligned_average, input_tensor_aligned = Super_CC_layer.forward(
+            input_tensor_stretched)
+        input_tensor_aligned_np = BW2RGB(torch_to_numpy(input_tensor_aligned))
+        aligned_crops = numpy_to_list(input_tensor_aligned_np)
+        average_crop = BW2RGB(torch_to_numpy(input_tensor_aligned_average[0]))
+
+        return aligned_crops, average_crop
 
 
 ### Main Function: ###

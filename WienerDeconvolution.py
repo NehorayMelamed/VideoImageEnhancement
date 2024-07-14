@@ -115,7 +115,7 @@ class WienerDeconvolution:
         ### This Is The Code Block: ###
         if image.ndim == 3 and image.shape[2] == 3:  # If image is RGB
             deblurred_image = np.zeros_like(image)  # Initialize output image
-            psf = np.zeros((image.shape[0], image.shape[1], 3))  # Initialize PSF
+            psf = np.ones((image.shape[0], image.shape[1], 3))  # Initialize PSF
             ### Looping Over Indices: ###
             for c in range(3):  # Process each channel separately
                 deblurred_image[:, :, c], psf[:, :, c] = unsupervised_wiener(

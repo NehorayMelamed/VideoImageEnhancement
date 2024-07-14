@@ -7,3 +7,6 @@ sudo apt install python3-tk
 
 
 please note to change the path of the pth file for the benImageDeblur inside the yaml -  /home/nehoray/PycharmProjects/VideoImageEnhancement/ben_deblur/ImageDeBlur/NAFNet-width64.yml
+
+
+av packages make issues with opencv window

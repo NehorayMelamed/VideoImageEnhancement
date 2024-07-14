@@ -44,3 +44,14 @@ Blur_kernel_NubKe_model = os.path.join(CHECKPOINTS, "NubKe", "TwoHeads.pkl")
 ### Depth map
 
 DEPTH_ESTIMATION_CHECKPOINT_PATH = os.path.join(BASE_PROJECT, "Model_New_Checkpoints", )
+
+
+#### SAM_CHECKPOINTS
+SAM_CHECKPOINTS = os.path.join(CHECKPOINTS, "sam", "sam_vit_h_4b8939.pth")
+
+#### yolo world
+yolo_world_checkpoint = os.path.join(CHECKPOINTS, "yolo_world", "yolov8x-worldv2.pt")
+
+#### grounding_diano
+grounding_dino_checkpoint = os.path.join(CHECKPOINTS, "grounding_dino", "groundingdino_swint_ogc.pth")
+grounding_dino_config_SwinT_OGC = os.path.join(CHECKPOINTS, "config", "GroundingDINO_SwinT_OGC.py")
