@@ -2,12 +2,7 @@ import cv2
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
-import PARAMETER
-import os
-import sys
-sys.path.append(os.path.join(f"{PARAMETER.BASE_PROJECT}/Segmentation"))
-
-from segment_anything.segment_anything import sam_model_registry, SamPredictor
+from Segmentation.segment_anything.segment_anything import sam_model_registry, SamPredictor
 
 
 def show_mask(mask, ax, random_color=False):
@@ -104,15 +99,23 @@ def get_mask_from_bbox(image_path, checkpoint_path, bbox=None, interactive=False
     elif bbox is None:
         raise ValueError("Bounding box must be provided if interactive mode is not used.")
 
+    if isinstance(image_path, str):
+        image = cv2.imread(image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    elif isinstance(image_path, np.ndarray):
+        if image_path.shape[2] == 3:
+            image = cv2.cvtColor(image_path, cv2.COLOR_BGR2RGB)
+        else:
+            image = image_path
+    else:
+        raise ValueError("Invalid image input. Must be a file path or numpy array.")
+
     # Load the model
     sam = sam_model_registry[model_type](checkpoint=checkpoint_path)
-    sam.to(device='cuda')
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"SAM - Using device: {device}")
+    sam.to(device=device)
 
-    # Load the image
-    image = cv2.imread(image_path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    # Create a predictor
     predictor = SamPredictor(sam)
     predictor.set_image(image)
 
@@ -126,14 +129,14 @@ def get_mask_from_bbox(image_path, checkpoint_path, bbox=None, interactive=False
         multimask_output=False,
     )
 
-    mask = masks[0]
+    mask = masks[0].astype(bool)
 
-    plt.figure(figsize=(10, 10))
-    plt.imshow(image)
-    show_mask(masks[0], plt.gca())
-    show_box(input_box, plt.gca())
-    plt.axis('off')
-    plt.show()
+    # plt.figure(figsize=(10, 10))
+    # plt.imshow(image)
+    # show_mask(masks[0], plt.gca())
+    # show_box(input_box, plt.gca())
+    # plt.axis('off')
+    # plt.show()
 
     if display_mask:
         # Overlay the mask on the image
@@ -160,10 +163,7 @@ def display_mask_bw(mask):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-
-if __name__ == '__main__':
-
-    # Example usage
+if __name__ == "__main__":
     image_path = r'C:\Users\dudyk\PycharmProjects\NehorayWorkSpace\Shaback\models\img.png'
     bbox = (425, 600, 700, 875)  # Example bounding box coordinates
     checkpoint_path = r'C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/sam_vit_h_4b8939.pth'

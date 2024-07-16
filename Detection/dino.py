@@ -1,16 +1,13 @@
-import os
-import sys
-import PARAMETER
-sys.path.append(os.path.join(PARAMETER.BASE_PROJECT, "Detection"))
-from GroundingDINO.groundingdino.util.inference import load_model, load_image, predict, annotate
+from Detection.GroundingDINO.groundingdino.util.inference import load_model, load_image, predict, annotate
 import cv2
-
-def detect_objects(model, image_path, class_prompt, box_threshold=0.35, text_threshold=0.25):
-    image_source, image = load_image(image_path)
+from typing import Union
+import numpy as np
+def detect_objects_dino(model, image_source: Union[str, np.ndarray], class_prompt, box_threshold=0.35, text_threshold=0.25):
+    image, image_transformed = load_image(image_source)
 
     boxes, logits, phrases = predict(
         model=model,
-        image=image,
+        image=image_transformed,
         caption=class_prompt,
         box_threshold=box_threshold,
         text_threshold=text_threshold
@@ -26,12 +23,11 @@ def display_results(image_path, boxes, logits, phrases):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-if __name__ == '__main__':
-    # Example usage
+if __name__ == "__main__":
     model = load_model("GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py", r"C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/groundingdino_swint_ogc.pth")
     model = model.to('cuda:0')
     IMAGE_PATH = r"C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/img_1.png"
     TEXT_PROMPT = "license plate . car ."
 
-    boxes, logits, phrases = detect_objects(model, IMAGE_PATH, TEXT_PROMPT)
+    boxes, logits, phrases = detect_objects_dino(model, IMAGE_PATH, TEXT_PROMPT)
     display_results(IMAGE_PATH, boxes, logits, phrases)

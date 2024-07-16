@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 from matplotlib.widgets import RectangleSelector
-
+import logging
 
 def generate_grid_points(xmin, ymin, xmax, ymax, grid_size, fill_all=False):
     if fill_all:
@@ -52,23 +52,29 @@ def load_video(video_source):
     return frames
 
 
-def track_points_in_video(video_source, points=None, grid_size=10, interactive=False, fill_all=False):
-    frames = load_video(video_source)
+def track_points_in_video_auto(video_source, points=None, grid_size=10, interactive=False, fill_all=False):
+    if isinstance(video_source, list) and all(isinstance(frame, np.ndarray) for frame in video_source):
+        frames = video_source
+    else:
+        frames = load_video(video_source)
 
     if interactive:
-        # Allow the user to select multiple boxes on the first frame
+        # Allow the user to  select multiple boxes on the first frame
         first_frame = frames[0]
         box_coords = select_boxes_on_frame(first_frame)
         points = []
         for (xmin, ymin, xmax, ymax) in box_coords:
             points.extend(generate_grid_points(xmin, ymin, xmax, ymax, grid_size, fill_all))
 
-    device = 'cuda'
-    video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(device)  # B T C H W
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"CO-TRACKER - Using device: {device}")
+    frames_array = np.stack(frames)
+    video = torch.from_numpy(frames_array).permute(0, 3, 1, 2)[None].float().to(device)  # B T C H W
 
     # Convert points to tensor and move to device
     frame_number = 0  # Use the first frame for queries
     queries = torch.tensor([[frame_number, x, y] for x, y in points], device=device).float()
+
 
     # Run Offline CoTracker:
     cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker2").to(device)
@@ -79,6 +85,10 @@ def track_points_in_video(video_source, points=None, grid_size=10, interactive=F
     # Convert tensors to numpy for returning
     pred_tracks = pred_tracks[0].cpu().detach().numpy()  # T N 2
     pred_visibility = pred_visibility[0].cpu().detach().numpy()  # T N
+
+    logging.debug(f"Tracking completed. Tracks shape: {pred_tracks.shape}, Visibility shape: {pred_visibility.shape}")
+    logging.debug(f"First 5 tracks: {pred_tracks[:5]}")
+    logging.debug(f"First 5 visibility: {pred_visibility[:5]}")
 
     return pred_tracks, pred_visibility, frames
 
@@ -114,6 +124,6 @@ def plot_tracking_results(pred_tracks, pred_visibility, frames):
 
 if __name__ == "__main__":
     video_source = "/home/nehoray/PycharmProjects/VideoImageEnhancement/data/videos/scene_0_resized.mp4"
-    pred_tracks, pred_visibility, frames = track_points_in_video(video_source, interactive=True, grid_size=5,
+    pred_tracks, pred_visibility, frames = track_points_in_video_auto(video_source, interactive=True, grid_size=5,
                                                                  fill_all=False)
     plot_tracking_results(pred_tracks, pred_visibility, frames)
