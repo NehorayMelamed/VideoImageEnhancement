@@ -1016,7 +1016,7 @@ def deblur_image_pipeline_NUBKE(blurred_image,
                                                         flag_use_avg_kernel_on_everything=flag_use_avg_kernel_on_everything)
 
     ### Get Image Crops After Deblur: ###
-    deblurred_crop = crop_image_around_segmentation_mask(torch_to_numpy(blurred_image), torch_to_numpy(seg_mask.squeeze()))
+    deblurred_crop = crop_image_around_segmentation_mask(torch_to_numpy(deblurred_entire_image.squeeze()), torch_to_numpy(seg_mask.squeeze()))
 
     ### Show Output: ###
     if flag_plot:

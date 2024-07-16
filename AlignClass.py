@@ -8,6 +8,7 @@ from Tracking.co_tracker.co_tracker import *
 from Super_ECC.Opgal_Isolated_Utils import *
 from ECC_Segmentation.ECC_layer_points_segmentation import ECC_Layer_Torch_Points_Batch as ECC_Layer_Torch_Points_Batch_Actual
 
+
 class AlignClass:
 
 
@@ -1925,7 +1926,587 @@ class AlignClass:
                                                                                                               predicted_points_list,
                                                                                                               homography_method=homography_method)
         return aligned_crops, average_crop
-    
+
+    # @staticmethod
+    # def align_and_average_frames_using_FlowFormer_and_PWC(frames, reference_frame=None, input_method=None,
+    #                                                       user_input=None, flow_model=None, occ_model=None):
+    #     """
+    #     Main function for denoising video frames.
+    #
+    #     Args:
+    #         # input_frames (torch.Tensor): Input video frames tensor of shape [B, T, C, H, W].
+    #         input_frames: Input video frames, list of numpy array.
+    #         flow_model (torch.nn.Module, optional): Optical flow model.
+    #         occ_model (torch.nn.Module, optional): Occlusion model.
+    #
+    #     Returns:
+    #         denoised_reference (torch.Tensor): Denoised reference frame tensor.
+    #         warp_list (list): List of warped frames.
+    #     """
+    #     ### Get Reference Frame: ###
+    #     if reference_frame is None:
+    #         reference_frame = frames[0]  # If reference_frame is not provided, use the first frame
+    #     H, W = reference_frame.shape[0:2]  # Get frame dimensions
+    #
+    #     ### Get Region From User: ###
+    #     initial_BB_XYXY, initial_polygon_points, initial_segmentation_mask, initial_grid_points, flag_no_input = user_input_to_all_input_types(
+    #         user_input,
+    #         input_method=input_method,
+    #         input_shape=(H, W))
+    #     segmentation_mask_tensor = torch.tensor(initial_segmentation_mask).unsqueeze(0).unsqueeze(0)
+    #
+    #     ### Initialize Flow and Occlusion Models if Not Provided: ###
+    #     if flow_model is None:  # If no flow model is provided
+    #         flow_model = load_flow_former().eval()  # Load and set flow model to evaluation mode
+    #
+    #     if occ_model is None:  # If no occlusion model is provided
+    #         occ_model = load_pwc().eval()  # Load and set occlusion model to evaluation mode
+    #
+    #     ### Crop to multiple of 8: ###
+    #     frames = AlignClass.crop_tensor_to_multiple_preserving_aspect_ratio(frames, size_multiple=8, min_size=0,
+    #                                                                         max_size=closest_multiple(400, 8))
+    #     reference_frame = AlignClass.crop_tensor_to_multiple_preserving_aspect_ratio(reference_frame, size_multiple=8,
+    #                                                                                  min_size=0,
+    #                                                                                  max_size=closest_multiple(400, 8))
+    #
+    #     ### Determine Reference Frame: ###
+    #     input_tensor = torch.cat([numpy_to_torch(frame).unsqueeze(0).cuda() for frame in frames]).unsqueeze(
+    #         0)  # [B,T,C,H,W]
+    #     reference_tensor = numpy_to_torch(reference_frame).unsqueeze(0).cuda()
+    #     # num_frames = input_tensor.shape[1]  # Number of frames in the input tensor
+    #     # ref_frame = input_tensor[:, ((num_frames - 1) // 2)].unsqueeze(0)  # Get the middle frame as the reference frame
+    #
+    #     ### Get Optical Flow and Occlusion Maps: ###
+    #     # [models_outputs] = flows, occlusion_maps, _, _ = model_output  # Unpack model output
+    #     models_outputs = get_optical_flow_and_occlusion_on_video(input_tensor,
+    #                                                              reference_tensor,
+    #                                                              flow_model,
+    #                                                              occ_model)  # Get optical flow and occlusions from the input frames
+    #     optical_flow, occlusions = models_outputs  # Unpack optical flow and occlusions
+    #     # optical_flow_intensities = AlignClass.get_optical_flow_intensity(optical_flow[:,0])
+    #
+    #     ### Denoise Using Optical Flow and Occlusion Maps: ###
+    #     average_frame, aligned_frames = denoise_using_optical_flow_and_occlusion_maps(
+    #         models_outputs,
+    #         input_tensor
+    #     )  # Denoise input frames using model outputs
+    #     aligned_frames = torch.cat(aligned_frames, dim=0)  # Concatenate aligned frames
+    #
+    #     ### Get Homographies From Optical Flow: ###
+    #     optical_flow_np = torch_to_numpy(optical_flow[:, 0])
+    #     aligned_crops, average_crop = AlignClass.align_and_average_frames_using_optical_flow_to_homography_matrix(
+    #         frames,
+    #         reference_frame,
+    #         optical_flow_np,
+    #         user_input=user_input,
+    #         input_method=input_method)
+    #
+    #     # ### Crop and Average Aligned Frames: ###
+    #     # X0, Y0, X1, Y1 = initial_BB_XYXY  # Get bounding box coordinates for cropping and averaging
+    #     # aligned_crops = aligned_frames[..., Y0:Y1, X0:X1]  # Crop aligned
+    #     # average_crop = average_frame[..., Y0:Y1, X0:X1]  # Crop average
+    #     # aligned_crops = [torch_to_numpy(aligned_crops[i]) for i in
+    #     #                  range(len(aligned_crops))]  # Convert torch tensors to numpy arrays
+    #     # average_crop = torch_to_numpy(average_crop)[0]
+    #     # # AlignClass.straighten_polygon_to_rectangle()
+    #     return aligned_crops, average_crop  # Return denoised reference frame and list of warped frames
+
+    @staticmethod
+    def align_and_average_frames_using_FlowFormer_and_PWC(frames, reference_frame=None, input_method=None,
+                                                          user_input=None, flow_model=None, occ_model=None,
+                                                          flag_use_homography=False):
+        """
+        Main function for denoising video frames.
+
+        Args:
+            # input_frames (torch.Tensor): Input video frames tensor of shape [B, T, C, H, W].
+            input_frames: Input video frames, list of numpy array.
+            flow_model (torch.nn.Module, optional): Optical flow model.
+            occ_model (torch.nn.Module, optional): Occlusion model.
+
+        Returns:
+            denoised_reference (torch.Tensor): Denoised reference frame tensor.
+            warp_list (list): List of warped frames.
+        """
+        ### Get Reference Frame: ###
+        if reference_frame is None:
+            reference_frame = frames[0]  # If reference_frame is not provided, use the first frame
+        H, W = reference_frame.shape[0:2]  # Get frame dimensions
+
+        ### Get Region From User: ###
+        initial_BB_XYXY, initial_polygon_points, initial_segmentation_mask, initial_grid_points, flag_no_input = user_input_to_all_input_types(
+            user_input,
+            input_method=input_method,
+            input_shape=(H, W))
+        segmentation_mask_tensor = torch.tensor(initial_segmentation_mask).unsqueeze(0).unsqueeze(0)
+
+        ### Initialize Flow and Occlusion Models if Not Provided: ###
+        if flow_model is None:  # If no flow model is provided
+            flow_model = load_flow_former().eval()  # Load and set flow model to evaluation mode
+
+        if occ_model is None:  # If no occlusion model is provided
+            occ_model = load_pwc().eval()  # Load and set occlusion model to evaluation mode
+
+        ### Crop to multiple of 8: ###
+        frames = AlignClass.crop_tensor_to_multiple_preserving_aspect_ratio(frames, size_multiple=8, min_size=0,
+                                                                            max_size=closest_multiple(400, 8))
+        reference_frame = AlignClass.crop_tensor_to_multiple_preserving_aspect_ratio(reference_frame, size_multiple=8,
+                                                                                     min_size=0,
+                                                                                     max_size=closest_multiple(400, 8))
+        initial_segmentation_mask = AlignClass.crop_tensor_to_multiple_preserving_aspect_ratio(
+            initial_segmentation_mask, size_multiple=8, min_size=0, max_size=closest_multiple(400, 8))
+
+        ### Determine Reference Frame: ###
+        input_tensor = torch.cat([numpy_to_torch(frame).unsqueeze(0).cuda() for frame in frames]).unsqueeze(
+            0)  # [B,T,C,H,W]
+        reference_tensor = numpy_to_torch(reference_frame).unsqueeze(0).cuda()
+        # num_frames = input_tensor.shape[1]  # Number of frames in the input tensor
+        # ref_frame = input_tensor[:, ((num_frames - 1) // 2)].unsqueeze(0)  # Get the middle frame as the reference frame
+
+        ### Get Optical Flow and Occlusion Maps: ###
+        # [models_outputs] = flows, occlusion_maps, _, _ = model_output  # Unpack model output
+        models_outputs = get_optical_flow_and_occlusion_on_video(input_tensor,
+                                                                 reference_tensor,
+                                                                 flow_model,
+                                                                 occ_model)  # Get optical flow and occlusions from the input frames
+        optical_flow, occlusions = models_outputs  # Unpack optical flow and occlusions
+        # optical_flow_intensities = AlignClass.get_optical_flow_intensity(optical_flow[:,0])
+
+        ### Denoise Using Optical Flow and Occlusion Maps: ###
+        average_frame, aligned_frames = denoise_using_optical_flow_and_occlusion_maps(
+            models_outputs,
+            input_tensor
+        )  # Denoise input frames using model outputs
+        aligned_frames = torch.cat(aligned_frames, dim=0)  # Concatenate aligned frames
+
+        ### Get Homographies From Optical Flow: ###
+        optical_flow_np = torch_to_numpy(optical_flow[:, 0])
+        if flag_use_homography:
+            aligned_crops, average_crop = AlignClass.align_and_average_frames_using_optical_flow_to_homography_matrix(
+                frames,
+                reference_frame,
+                optical_flow_np,
+                user_input=user_input,
+                input_method=input_method)
+        else:
+            ### Crop and Average Aligned Frames: ###
+            X0, Y0, X1, Y1 = initial_BB_XYXY  # Get bounding box coordinates for cropping and averaging
+            aligned_crops = aligned_frames[..., Y0:Y1, X0:X1]  # Crop aligned
+            average_crop = torch_to_numpy(average_frame[..., Y0:Y1, X0:X1]).squeeze()  # Crop average
+            aligned_crops = [torch_to_numpy(aligned_crops[i]) for i in
+                             range(len(aligned_crops))]  # Convert torch tensors to numpy arrays
+
+        return aligned_crops, average_crop  # Return denoised reference frame and list of warped frames
+
+    @staticmethod
+    def crop_tensor_to_multiple_preserving_aspect_ratio(input_image, size_multiple=8, min_size=0, max_size=np.inf):
+        ### Get closest sizes which are multiple of "multiple": ###
+        if isinstance(input_image, list):
+            (H_new, W_new) = AlignClass.adjust_shape_to_multiple(input_image[0].shape[0:2], multiple=size_multiple,
+                                                                 method='crop')
+        else:
+            (H_new, W_new) = AlignClass.adjust_shape_to_multiple(input_image.shape[0:2], multiple=size_multiple,
+                                                                 method='crop')
+
+        ### If size is smaller then min_size or larger than max_size --> resize it: ###
+        aspect_ratio = (W_new / H_new)
+        min_HW = min(H_new, W_new)
+        max_HW = max(H_new, W_new)
+        if min_HW < min_size:
+            if aspect_ratio < 1:
+                W_new = int(min_size * aspect_ratio)
+                W_new = (W_new // size_multiple) * size_multiple
+                H_new = min_size
+                H_new = (H_new // size_multiple) * size_multiple
+            else:
+                H_new = min_size
+                W_new = int(H_new * aspect_ratio)
+                W_new = (W_new // size_multiple) * size_multiple
+        if max_HW > max_size:
+            if aspect_ratio < 1:
+                W_new = int(max_size * aspect_ratio)
+                W_new = (W_new // size_multiple) * size_multiple
+                H_new = max_size
+                H_new = (H_new // size_multiple) * size_multiple
+            else:
+                H_new = max_size
+                W_new = int(H_new * aspect_ratio)
+                W_new = (W_new // size_multiple) * size_multiple
+
+        ### Crop frames or list of frames: ###
+        if isinstance(input_image, list):
+            input_image = [cv2.resize(input_image[i], (W_new, H_new), interpolation=cv2.INTER_LINEAR) for i in
+                           np.arange(len(input_image))]
+        elif isinstance(input_image, np.ndarray):
+            input_image = cv2.resize(input_image, (W_new, H_new), interpolation=cv2.INTER_LINEAR)
+
+        return input_image
+
+    @staticmethod
+    def adjust_shape_to_multiple(shape: tuple, multiple: int, min_shape_tuple: tuple = None,
+                                 method: str = 'pad') -> tuple:
+        """
+        Adjust the dimensions of an image to the closest multiples of a given number and ensure minimum size.
+
+        Args:
+            shape (tuple): Original dimensions of the image (H, W).
+            multiple (int): The number to which the dimensions should be multiples of.
+            min_shape_tuple (tuple, optional): Minimum dimensions (H_min, W_min). Defaults to None.
+            method (str): Method to adjust the dimensions ('pad' or 'crop'). Defaults to 'pad'.
+
+        Returns:
+            tuple: Adjusted dimensions (H_new, W_new).
+        """
+        H, W = shape  # Extract original dimensions
+
+        ### Calculating Adjusted Dimensions: ###
+        H_new = (H // multiple + (1 if H % multiple != 0 and method == 'pad' else 0)) * multiple  # Calculate new height
+        W_new = (W // multiple + (1 if W % multiple != 0 and method == 'pad' else 0)) * multiple  # Calculate new width
+
+        if method == 'crop':  # Check if method is 'crop'
+            H_new = (H // multiple) * multiple  # Adjust height by cropping
+            W_new = (W // multiple) * multiple  # Adjust width by cropping
+
+        ### Ensure Minimum Dimensions: ###
+        if min_shape_tuple is not None:
+            H_min, W_min = min_shape_tuple  # Extract minimum dimensions
+            H_new = max(H_new, H_min)  # Ensure new height meets minimum
+            W_new = max(W_new, W_min)  # Ensure new width meets minimum
+
+        return H_new, W_new  # Return adjusted dimensions
+
+    @staticmethod
+    def align_and_average_frames_using_optical_flow_to_homography_matrix(frames, reference_frame, optical_flow,
+                                                                         user_input=None, input_method=None):
+        """
+        Align frames using given optical flow, compute the averaged aligned frame,
+        and extract crops based on the initial bounding box or segmentation mask.
+
+        Args:
+            frames (list): List of frames (numpy arrays) to align. Each frame shape is [H, W, C].
+            reference_frame (np.ndarray): Reference frame with shape [H, W, C].
+            optical_flow (np.ndarray): Optical flow for each frame relative to reference frame. Shape is [T, H, W, 2].
+            user_input (tuple, list, np.ndarray, or None): Input defining the region of interest.
+                - If input_method is 'BB', user_input should be a tuple (X0, Y0, X1, Y1).
+                - If input_method is 'polygon', user_input should be a list of (x, y) tuples.
+                - If input_method is 'segmentation', user_input should be a segmentation mask (np.ndarray of shape (H, W)).
+                - If user_input is None, use all pixels.
+            input_method (str or None): Method used to define the region of interest ('BB', 'polygon', 'segmentation', or None).
+
+        Returns:
+            list: List of aligned crops.
+            np.ndarray: Averaged aligned crop.
+        """
+
+        ### Get Bounding Box Dimensions: ###
+        h, w = reference_frame.shape[:2]  # Get height and width from reference frame shape
+
+        ### Convert User Input to All Input Types: ###
+        initial_BB_XYXY, initial_polygon_points, initial_segmentation_mask, initial_grid_points, flag_no_input = user_input_to_all_input_types(
+            user_input, input_method=input_method, input_shape=(h, w))
+
+        ### Initialize Lists: ###
+        aligned_crops = []  # List to store crops of aligned frames
+        crops = []  # List to store crops from each aligned frame
+
+        ### Looping Over Indices: ###
+        for t, flow in enumerate(optical_flow):  # Loop through each frame and its corresponding optical flow
+            flow_map = np.zeros((h, w, 2), dtype=np.float32)  # Initialize flow map
+            flow_map[:, :, 0] = flow[:, :, 0]  # Set flow map x-coordinates
+            flow_map[:, :, 1] = flow[:, :, 1]  # Set flow map y-coordinates
+
+            ### Compute Homography Matrix: ###
+            src_points, dst_points = AlignClass.get_src_and_dst_points_from_optical_flow(flow_map, user_input,
+                                                                                         input_method)
+
+            ### Get Homography From Source and Destination Points: ###
+            H = AlignClass.find_homography_for_two_point_sets_simple_least_squares(src_points, dst_points)
+
+            ### Warp According To Homography: ###
+            remap_frame, averaged_frame = AlignClass.align_frames_using_given_homographies([frames[t]], reference_frame,
+                                                                                           [H])  # Warp
+            remap_frame = remap_frame[0]  # Get the first frame from the warped
+
+            ### Extract Crop: ###
+            if (input_method=='polygon' or input_method == 'BB') and initial_BB_XYXY is not None:
+                X0, Y0, X1, Y1 = initial_BB_XYXY
+                crop = remap_frame[Y0:Y1 + 1, X0:X1 + 1]  # Extract the crop from the remapped frame
+            elif input_method == 'segmentation' and initial_segmentation_mask is not None:
+                crop = remap_frame * (
+                            initial_segmentation_mask[:, :, None] > 0)  # Mask the remapped frame with segmentation mask
+            else:
+                crop = remap_frame  # Use the whole frame if no specific input method is provided
+
+            aligned_crops.append(crop)  # Add crop to list
+            crops.append(crop)  # Add crop to list
+
+        ### Compute Averaged Crop: ###
+        averaged_crop = np.mean(aligned_crops, axis=0).astype(np.uint8)  # Compute the average of the crops
+
+        return aligned_crops, averaged_crop  # Return the aligned crops, average crop, and crops extracted from each aligned frame
+
+    @staticmethod
+    def align_frames_to_reference_using_given_optical_flow(frames, reference_frame, optical_flow):
+        # TODO: make robust to accept pytorch tensors instead of numpy arrays
+        """
+        Align frames using given optical flow and compute the averaged aligned frame.
+
+        Args:
+            frames (list): List of frames (numpy arrays) to align. Each frame shape is [H, W, C].
+            reference_frame (np.ndarray): Reference frame with shape [H, W, C].
+            optical_flow (np.ndarray): Optical flow for each frame relative to reference frame. Shape is [T, H, W, 2].
+
+        Returns:
+            list: List of aligned frames.
+            np.ndarray: Averaged aligned frame.
+        """
+
+        ### This Is The Code Block: ###
+        h, w = reference_frame.shape[:2]  # Get height and width from reference frame shape
+        aligned_frames = []  # List to store aligned frames
+
+        ### Looping Over Indices: ###
+        for t, flow in enumerate(optical_flow):  # Loop through each frame and its corresponding optical flow
+            flow_map = np.zeros((h, w, 2), dtype=np.float32)  # Initialize flow map
+            flow_map[:, :, 0] = flow[:, :, 0]  # Set flow map x-coordinates
+            flow_map[:, :, 1] = flow[:, :, 1]  # Set flow map y-coordinates
+            flow_map_intensity = AlignClass.get_optical_flow_intensity(flow_map)
+
+            ### Calculate New Coordinates for Each Pixel: ###
+            coords = np.dstack(np.meshgrid(np.arange(w), np.arange(h)))  # Create a grid of coordinates
+            coords = coords.astype(np.float32)  # Convert to float for accurate calculations
+            new_coords = coords + flow  # Add flow to coordinates to get new coordinates
+
+            ### Interpolate: ###
+            remap_frame = cv2.remap(frames[t], new_coords[:, :, 0], new_coords[:, :, 1],
+                                    cv2.INTER_LINEAR)  # Remap frame using flow map
+
+            # ### Debug: ###
+            # imshow_np(frames[0], 'reference')
+            # imshow_np(frames[t], 'new')
+            # imshow_np(remap_frame, 'aligned')
+
+            ### Append to frames: ###
+            aligned_frames.append(remap_frame)  # Add aligned frame to list
+
+        # ### Debug: ###
+        # imshow_video(list_to_numpy(aligned_frames), FPS=5, frame_stride=2)
+
+        ### This Is The Code Block: ###
+        averaged_frame = np.mean(aligned_frames, axis=0).astype(np.uint8)  # Compute the averaged frame
+        return aligned_frames, averaged_frame  # Return aligned frames and averaged frame
+
+    @staticmethod
+    def align_frames_crops_to_reference_using_given_optical_flow(frames, reference_frame, optical_flow,
+                                                                 initial_BB_XYXY):
+        # TODO: make robust to accept pytorch tensors instead of numpy arrays
+        """
+        Align frames using given optical flow and compute the averaged aligned frame.
+
+        Args:
+            frames (list): List of frames (numpy arrays) to align. Each frame shape is [H, W, C].
+            reference_frame (np.ndarray): Reference frame with shape [H, W, C].
+            optical_flow (np.ndarray): Optical flow for each frame relative to reference frame. Shape is [T, H, W, 2].
+
+        Returns:
+            list: List of aligned frames.
+            np.ndarray: Averaged aligned frame.
+        """
+
+        ### This Is The Code Block: ###
+        h, w = reference_frame.shape[:2]  # Get height and width from reference frame shape
+        aligned_frames = []  # List to store aligned frames
+
+        ### Looping Over Indices: ###
+        for t, flow in enumerate(optical_flow):  # Loop through each frame and its corresponding optical flow
+            flow_map = np.zeros((h, w, 2), dtype=np.float32)  # Initialize flow map
+            flow_map[:, :, 0] = flow[:, :, 0]  # Set flow map x-coordinates
+            flow_map[:, :, 1] = flow[:, :, 1]  # Set flow map y-coordinates
+            flow_map_intensity = AlignClass.get_optical_flow_intensity(flow_map)
+
+            ### Calculate New Coordinates for Each Pixel: ###
+            coords = np.dstack(np.meshgrid(np.arange(w), np.arange(h)))  # Create a grid of coordinates
+            coords = coords.astype(np.float32)  # Convert to float for accurate calculations
+            new_coords = coords + flow  # Add flow to coordinates to get new coordinates
+
+            ### Interpolate: ###
+            remap_frame = cv2.remap(frames[t], new_coords[:, :, 0], new_coords[:, :, 1],
+                                    cv2.INTER_LINEAR)  # Remap frame using flow map
+
+            # ### Debug: ###
+            # imshow_np(frames[0], 'reference')
+            # imshow_np(frames[t], 'new')
+            # imshow_np(remap_frame, 'aligned')
+
+            ### Append to frames: ###
+            aligned_frames.append(remap_frame)  # Add aligned frame to list
+
+        # ### Debug: ###
+        # imshow_video(list_to_numpy(aligned_frames), FPS=5, frame_stride=2)
+
+        ### This Is The Code Block: ###
+        averaged_frame = np.mean(aligned_frames, axis=0).astype(np.uint8)  # Compute the averaged frame
+        X0, Y0, X1, Y1 = initial_BB_XYXY  # Extract initial bounding box coordinates
+        aligned_crops = [aligned_frames[i][Y0:Y1, X0:X1] for i in range(len(aligned_frames))]  # Extract aligned crops
+        average_crop = np.mean(aligned_crops, axis=0)
+        return aligned_crops, average_crop  # Return aligned frames and averaged frame
+
+    @staticmethod
+    def get_src_and_dst_points_from_optical_flow(optical_flow, user_input=None, input_method=None):
+        """
+        Get original and new positions of all pixels based on optical flow.
+
+        Args:
+            optical_flow (np.ndarray): Optical flow with respect to a reference image (H, W, 2).
+            user_input (tuple, list, np.ndarray, or None): Input defining the region of interest.
+                - If input_method is 'BB', user_input should be a tuple (X0, Y0, X1, Y1).
+                - If input_method is 'polygon', user_input should be a list of (x, y) tuples.
+                - If input_method is 'segmentation', user_input should be a segmentation mask (np.ndarray of shape (H, W)).
+                - If user_input is None, use all pixels.
+            input_method (str or None): Method used to define the region of interest ('BB', 'polygon', 'segmentation', or None).
+
+        Returns:
+            src_points (np.ndarray): Original positions of selected pixels (N, 2).
+            dst_points (np.ndarray): New positions of selected pixels based on optical flow (N, 2).
+        """
+
+        ### Get Image Dimensions: ###
+        h, w = optical_flow.shape[:2]  # Get height and width of the image
+
+        ### Create Grid of Coordinates: ###
+        coords = np.dstack(np.meshgrid(np.arange(w), np.arange(h)))  # Create a grid of coordinates
+
+        ### Calculate New Coordinates: ###
+        new_coords = coords + optical_flow  # Add optical flow to get new coordinates
+
+        if user_input is None:
+            ### Use All Pixels: ###
+            mask = np.ones((h, w), dtype=bool)  # Create a mask that includes all pixels
+        else:
+            ### Initialize Mask: ###
+            mask = np.zeros((h, w), dtype=bool)  # Initialize mask with False
+
+            ### Apply Input Based on Method: ###
+            if input_method == 'BB':
+                X0, Y0, X1, Y1 = user_input
+                mask[Y0:Y1 + 1, X0:X1 + 1] = True  # Set mask to True within the bounding box
+            elif input_method == 'polygon':
+                # poly_mask = np.zeros((h, w), dtype=bool)
+                # cv2.fillPoly(poly_mask, [np.array(user_input, dtype=np.int32)], 1)
+                # mask = poly_mask  # Use polygon mask
+                BB, mask = polygon_to_bounding_box_and_mask(user_input, (h,w))
+            elif input_method == 'segmentation':
+                mask = user_input > 0  # Use segmentation mask
+
+        ### Select Points Based on Mask: ###
+        selected_coords = coords[mask.astype(np.bool_)]  # Original positions within mask
+        selected_new_coords = new_coords[mask.astype(np.bool_)]  # New positions within mask
+
+        ### Reshape to List of Points: ###
+        src_points = selected_coords.reshape(-1, 2)  # Original positions
+        dst_points = selected_new_coords.reshape(-1, 2)  # New positions based on optical flow
+
+        return src_points, dst_points  # Return original and new positions
+
+    @staticmethod
+    def test_align_and_average_frames_using_FlowFormer_and_PWC(frames, flag_plot=False):
+        reference_frame = frames[0]  # Use the first frame as the reference frame
+        initial_BB_XYXY = draw_bounding_box(reference_frame)  # Draw bounding box around
+        X0, Y0, X1, Y1 = initial_BB_XYXY  # Get bounding box coordinates
+        frames = [frames[i][Y0:Y1, X0:X1] for i in range(len(frames))]
+        reference_frame = frames[0]
+        AlignClass.align_and_average_frames_using_FlowFormer_and_PWC(frames[0:10], reference_frame, input_method='BB',
+                                                                     user_input=initial_BB_XYXY)
+        bla = 1
+
+    @staticmethod
+    def align_and_average_frames_using_OpticalFlow(frames,
+                                                   reference_frame=None,
+                                                   input_method=None,
+                                                   user_input=None,
+                                                   optical_flow_method='LucasKanade',
+                                                   flag_use_optical_flow_to_homography=True):
+
+        ### Get Reference Frame: ###
+        if reference_frame is None:
+            reference_frame = frames[0]  # If reference_frame is not provided, use the first frame
+        H, W = reference_frame.shape[0:2]  # Get frame dimensions
+
+        ### Get Region From User: ###
+        initial_BB_XYXY, initial_polygon_points, initial_segmentation_mask, grid_points, flag_no_input = user_input_to_all_input_types(
+            user_input,
+            input_method=input_method,
+            input_shape=(H, W))
+
+        ### Get Optical Flow: ###
+        # TODO: implement optical flow calculation here
+        # TODO: add possibility of converting optical flow to homographies
+        optical_flow = AlignClass.calculate_optical_flow_raft_reference(frames, reference_frame, model_path=None,
+                                                                        return_numpy=True)
+
+        ### Use Optical Flow to Align Frames: ###
+        # TODO: add scale_factor when aligning frames
+        # TODO: add using optical flow method to calculate homographies and using homographies
+        if flag_use_optical_flow_to_homography == False:
+            aligned_crops, average_crop = AlignClass.align_frames_crops_to_reference_using_given_optical_flow(frames,
+                                                                                                              reference_frame,
+                                                                                                              optical_flow,
+                                                                                                              initial_BB_XYXY)
+        else:
+            ### Use Optical Flow To Fit Homography And Use It To Align Crops: ###
+            aligned_crops, average_crop = AlignClass.align_and_average_frames_using_optical_flow_to_homography_matrix(
+                frames, reference_frame, optical_flow, initial_BB_XYXY, 'BB')
+
+        return aligned_crops, average_crop
+
+    @staticmethod
+    def my_test_wrapper(movie_path, test_function_method):
+        """
+        Wrapper function to test different frame alignment methods using a movie file or image folder.
+
+        Args:
+            movie_path (str): Path to the movie file or images folder.
+            test_name (str): Name of the test function to run.
+
+        """
+        ### Load Frames from Movie or Image Folder: ###
+        frames = []  # List to store frames
+        if os.path.isdir(movie_path):  # Check if movie_path is a directory
+            image_files = sorted(os.listdir(movie_path))  # List image files in the directory
+            for image_file in image_files:  # Loop through each image file
+                img = cv2.imread(os.path.join(movie_path, image_file))  # Read image
+                frames.append(img)  # Append image to frames list
+        else:  # If movie_path is a file
+            cap = cv2.VideoCapture(movie_path)  # Open video file
+            while cap.isOpened():  # Loop through each frame in the video
+                ret, frame = cap.read()  # Read frame
+                if not ret:  # Break if no frame is read
+                    break
+                frames.append(frame)  # Append frame to frames list
+            cap.release()  # Release video capture
+
+        ### Mapping test_name to Corresponding Test Function: ###
+        test_functions = {
+            'align_frames_homography': AlignClass.test_align_frames_homography,
+            'align_frame_crops_using_given_homographies': AlignClass.test_align_frame_crops_using_given_homographies,
+            'align_crops_in_frames_using_given_bounding_boxes': AlignClass.test_align_crops_in_frames_using_given_bounding_boxes,
+            'align_crops_optical_flow': AlignClass.test_align_crops_optical_flow,  # TODO: needs to improve
+            'align_bounding_boxes_predicted_points': AlignClass.test_align_bounding_boxes_predicted_points,
+            'align_frames_to_reference_using_given_optical_flow': AlignClass.test_align_frames_to_reference_using_given_optical_flow,
+            'align_frames_translation': AlignClass.test_align_frames_translation,
+            'align_crops_using_co_tracker': AlignClass.test_align_crops_using_co_tracker,
+            'align_crops_using_ECC': AlignClass.test_align_crops_using_ECC,
+            'align_crops_using_SCC': AlignClass.test_align_crops_using_SCC,
+            'align_and_average_frames_using_FlowFormer_and_PWC': AlignClass.test_align_and_average_frames_using_FlowFormer_and_PWC,
+        }
+
+        ### Execute the Chosen Test Function: ###
+        if test_function_method in test_functions:  # Check if test_name is valid
+            test_functions[test_function_method](frames)  # Call the corresponding test function
+        else:  # If test_name is not valid
+            print(f"Invalid test name: {test_function_method}")  # Print error message
+
+
     @staticmethod
     def align_and_average_frames_using_CoTracker(frames, 
                                                  reference_frame=None,
@@ -1952,7 +2533,7 @@ class AlignClass:
         ### Align Frames Using CoTracker: ###
         initial_points_list = initial_grid_points.tolist() #TODO: need to check this .tolist() because i think initial_grid_points is already a list
         frames_array = np.concatenate([numpy_unsqueeze(frames[i], 0) for i in range(len(frames))], axis=0)
-        pred_tracks, pred_visibility, frames_array = track_points_in_video(frames_array,
+        pred_tracks, pred_visibility, frames_array = track_points_in_video_auto(frames_array,
                                                                            points=initial_points_list,
                                                                            grid_size=5,
                                                                            interactive=False,
@@ -2830,6 +3411,48 @@ class AlignClass:
             print(f"Invalid test name: {test_function_method}")  # Print error message
 
     @staticmethod
+    def mean_over_frames(frames):
+        return [np.mean(list_to_numpy([BW2RGB(frames[i]) for i in np.arange(len(frames))]), axis=0)]
+
+    @staticmethod
+    def stretch_histogram(frames):
+        return [BW2RGB(scale_array_stretch_hist(frames[i], min_max_values_to_scale_to=(0, 255))).astype(np.uint8) for i in
+                np.arange(len(frames))]
+
+    @staticmethod
+    def unsharp_mask_list(frames, sigma=2, strength=3):
+        return [BW2RGB(AlignClass.unsharp_mask(frame, sigma, strength)) for frame in frames]
+
+    @staticmethod
+    def unsharp_mask(image, sigma=2, strength=3):
+        """
+        Sharpen image using unsharp masking.
+
+        Args:
+            image (numpy.ndarray): Input image (H, W, C) or (H, W).
+            sigma (float, optional): Standard deviation for Gaussian blur. Default is 1.0.
+            strength (float, optional): Strength of the sharpening effect. Default is 1.5.
+
+        Returns:
+            numpy.ndarray: Sharpened image.
+        """
+        ### Convert to Grayscale If Needed: ###
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Convert image to grayscale if it is a color image
+        else:
+            gray_image = image  # Use the image directly if it is already grayscale
+
+        ### Apply Gaussian Blur: ###
+        blurred = cv2.GaussianBlur(gray_image, (0, 0), sigma)  # Apply Gaussian blur with specified sigma
+
+        ### Sharpen Image: ###
+        sharpened = cv2.addWeighted(gray_image, 1 + strength, blurred, -strength,
+                                    0)  # Combine original and blurred images
+
+        return sharpened  # Return the sharpened image
+
+
+    @staticmethod
     def align_and_average_frames_using_ECC(frames, reference_frame=None, input_method=None, user_input=None,
                                            flag_pre_align_using_SCC=False):
         ### Get Reference Frame: ###
@@ -2859,8 +3482,8 @@ class AlignClass:
         precision = torch.float
 
         ### Initialize ECC Layer: ###
-        ECC_layer_object = ECC_Layer_Torch_Points_Batch_Actual(input_tensor_BW[0:number_of_frames_per_batch],
-                                                               reference_tensor,
+        ECC_layer_object = ECC_Layer_Torch_Points_Batch_Actual(input_tensor_BW[0:number_of_frames_per_batch]/255,
+                                                               reference_tensor/255,
                                                                number_of_iterations_per_level=200,
                                                                number_of_levels=1,
                                                                transform_string='homography',
@@ -2869,13 +3492,13 @@ class AlignClass:
                                                                precision=precision)
 
         ### Perform ECC: ###
-        aligned_frames, H_matrix = ECC_layer_object.forward_iterative(input_tensor_RGB,
-                                                                      input_tensor_BW.type(precision),
-                                                                      reference_tensor.type(precision),
+        aligned_frames, H_matrix = ECC_layer_object.forward_iterative(input_tensor_RGB/255,
+                                                                      input_tensor_BW.type(precision)/255,
+                                                                      reference_tensor.type(precision)/255,
                                                                       max_shift_threshold=0.6e-4,
                                                                       flag_print=False,
                                                                       delta_p_init=None,
-                                                                      number_of_images_per_batch=5,
+                                                                      number_of_images_per_batch=len(input_tensor_RGB),
                                                                       flag_calculate_gradient_in_advance=False,
                                                                       segmentation_mask=segmentation_mask_tensor.bool())
 

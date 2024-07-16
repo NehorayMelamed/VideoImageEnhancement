@@ -941,7 +941,7 @@ class WienerDeconvolution:
                                                                                               num_psf_iter=5)
 
         ### Get Deblurred Crop: ###
-        X0, Y0, X1, Y1 = initial_BB_XYXY.shape
+        X0, Y0, X1, Y1 = initial_BB_XYXY
         deblurred_crops_list = []
         blurred_crops_list = []
         for i in np.arange(len(deblurred_images)):

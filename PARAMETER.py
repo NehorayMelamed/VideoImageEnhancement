@@ -6,12 +6,12 @@ GROUNDED_SEGMENT_ANYTHING_BASE_PATH = os.path.join(BASE_PROJECT, "Grounded_Segme
 OUTPUT = "tweets_per_accounts"
 CAR_LICENSE_PLATE_RECOGNITION = "CAR_LICENSE_PLATE_RECOGNITION"
 
-
-
+cwd = os.getcwd()
+BASE_NAME_RESTORE = os.path.dirname(os.path.dirname(cwd))  # Get the parent of the parent directory
 
 CHECKPOINTS = os.path.join(BASE_PROJECT, "checkpoints")
 
-
+DEVICE = 'cuda'
 
 ### denoise
 
@@ -22,21 +22,18 @@ path_checkpoint_latest_things = f"{CHECKPOINTS}/irr/checkpoints/checkpoint_lates
 
 ### deblur
 
-RVRT_deblur_shoval_train_py_blur20_TEST1_Step60000 = os.path.join(BASE_PROJECT, "Omer", "to_neo", "RVRT_deblur_shoval_train.py_blur20_TEST1_Step60000.tar")
-
+RVRT_deblur_shoval_train_py_blur20_TEST1_Step60000 = os.path.join(BASE_PROJECT, "Omer", "to_neo",
+                                                                  "RVRT_deblur_shoval_train.py_blur20_TEST1_Step60000.tar")
 
 ### Directory path to save result for the detedtion process
 
 DETECTION_DIRECTORY_PATH = os.path.join(BASE_PROJECT, OUTPUT, CAR_LICENSE_PLATE_RECOGNITION)
 
-
 #### NAFNet-width64.yml
 NEFNet_width64 = os.path.join(CHECKPOINTS, "BenDeblur", "NAFNet-width64.yml")
 
-
 #### Model_New_Checkpoints
 Model_New_Checkpoints = os.path.join(BASE_PROJECT, "Model_New_Checkpoints")
-
 
 #### Blur_kernel_NubKe_model
 Blur_kernel_NubKe_model = os.path.join(CHECKPOINTS, "NubKe", "TwoHeads.pkl")
@@ -44,7 +41,6 @@ Blur_kernel_NubKe_model = os.path.join(CHECKPOINTS, "NubKe", "TwoHeads.pkl")
 ### Depth map
 
 DEPTH_ESTIMATION_CHECKPOINT_PATH = os.path.join(BASE_PROJECT, "Model_New_Checkpoints", )
-
 
 #### SAM_CHECKPOINTS
 SAM_CHECKPOINTS = os.path.join(CHECKPOINTS, "sam", "sam_vit_h_4b8939.pth")
@@ -54,4 +50,10 @@ yolo_world_checkpoint = os.path.join(CHECKPOINTS, "yolo_world", "yolov8x-worldv2
 
 #### grounding_diano
 grounding_dino_checkpoint = os.path.join(CHECKPOINTS, "grounding_dino", "groundingdino_swint_ogc.pth")
-grounding_dino_config_SwinT_OGC = os.path.join(CHECKPOINTS, "config", "GroundingDINO_SwinT_OGC.py")
+grounding_dino_config_SwinT_OGC = os.path.join(CHECKPOINTS, "grounding_dino", "config", "GroundingDINO_SwinT_OGC.py")
+
+
+class InputMethodForServices:
+    segmentation    = "segmentation"
+    BB              = "BB"
+    polygon         = "polygon"
