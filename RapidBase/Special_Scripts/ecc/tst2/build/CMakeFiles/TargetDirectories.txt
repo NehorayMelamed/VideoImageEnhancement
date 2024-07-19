@@ -1,0 +1,3 @@
+/home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/ecc/tst2/build/CMakeFiles/rebuild_cache.dir
+/home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/ecc/tst2/build/CMakeFiles/edit_cache.dir
+/home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/ecc/tst2/build/CMakeFiles/example-app.dir

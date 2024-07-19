@@ -1,0 +1,54 @@
+__global__ void invertMatrix(float* matrix, float* inverse) {
+  // Declare shared memory for the lower triangle of the matrix
+  __shared__ float lower[8][8];
+
+  // Thread index
+  int tid = threadIdx.x;
+
+  // Load the lower triangle of the matrix into shared memory
+  lower[tid][tid] = matrix[tid * 9];
+  for (int i = tid + 1; i < 8; i++) {
+    lower[i][tid] = matrix[i * 9 + tid];
+  }
+  __syncthreads();
+
+  // Perform the Cholesky decomposition
+  for (int k = 0; k < 8; k++) {
+    if (k == tid) {
+      lower[k][k] = sqrtf(lower[k][k]);
+    }
+    for (int i = k + 1; i < 8; i++) {
+      if (i == tid) {
+        lower[i][k] = lower[i][k] / lower[k][k];
+      }
+    }
+    __syncthreads();
+    for (int i = k + 1; i < 8; i++) {
+      for (int j = k + 1; j < 8; j++) {
+        if (i == tid || j == tid) {
+          lower[i][j] = lower[i][j] - lower[i][k] * lower[j][k];
+        }
+      }
+    }
+    __syncthreads();
+  }
+
+  // Invert the lower triangle
+  for (int i = 0; i < 8; i++) {
+    inverse[i * 9 + i] = 1.0f / lower[i][i];
+    for (int j = i + 1; j < 8; j++) {
+      float sum = 0.0f;
+      for (int k = i; k < j; k++) {
+        sum -= inverse[j * 9 + k] * lower[k][i];
+      }
+      inverse[j * 9 + i] = sum / lower[j][j];
+    }
+  }
+
+  // Copy the lower triangle to the upper triangle of the inverse
+  for (int i = 0; i < 8; i++) {
+    for (int j = i + 1; j < 8; j++) {
+      inverse[i * 9 + j] = inverse[j * 9 + i];
+    }
+  }
+}

@@ -1,0 +1,60 @@
+Performing C++ SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/CCL_opencv/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_b0ed1/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_b0ed1.dir/build.make CMakeFiles/cmTC_b0ed1.dir/build
+gmake[1]: Entering directory '/home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/CCL_opencv/build/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_b0ed1.dir/src.cxx.o
+/usr/local/bin/c++ -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_b0ed1.dir/src.cxx.o -c "/home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/CCL_opencv/build/CMakeFiles/CMakeTmp/src.cxx"
+Linking CXX executable cmTC_b0ed1
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b0ed1.dir/link.txt --verbose=1
+/usr/local/bin/c++ CMakeFiles/cmTC_b0ed1.dir/src.cxx.o -o cmTC_b0ed1 
+CMakeFiles/cmTC_b0ed1.dir/src.cxx.o: In function `main':
+src.cxx:(.text+0x2d): undefined reference to `pthread_create'
+src.cxx:(.text+0x39): undefined reference to `pthread_detach'
+src.cxx:(.text+0x45): undefined reference to `pthread_cancel'
+src.cxx:(.text+0x56): undefined reference to `pthread_join'
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_b0ed1.dir/build.make:99: cmTC_b0ed1] Error 1
+gmake[1]: Leaving directory '/home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/CCL_opencv/build/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_b0ed1/fast] Error 2
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/CCL_opencv/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_2aa3d/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_2aa3d.dir/build.make CMakeFiles/cmTC_2aa3d.dir/build
+gmake[1]: Entering directory '/home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/CCL_opencv/build/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_2aa3d.dir/CheckFunctionExists.cxx.o
+/usr/local/bin/c++   -DCHECK_FUNCTION_EXISTS=pthread_create -o CMakeFiles/cmTC_2aa3d.dir/CheckFunctionExists.cxx.o -c "/home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/CCL_opencv/build/CMakeFiles/CheckLibraryExists/CheckFunctionExists.cxx"
+Linking CXX executable cmTC_2aa3d
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2aa3d.dir/link.txt --verbose=1
+/usr/local/bin/c++  -DCHECK_FUNCTION_EXISTS=pthread_create CMakeFiles/cmTC_2aa3d.dir/CheckFunctionExists.cxx.o -o cmTC_2aa3d  -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_2aa3d.dir/build.make:99: cmTC_2aa3d] Error 1
+gmake[1]: Leaving directory '/home/yuri/Dropbox (Weizmann Institute)/dudi/palantir/CCL_opencv/build/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_2aa3d/fast] Error 2
+
+
+
