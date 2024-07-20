@@ -1,5 +1,8 @@
 import os.path
 
+import numpy
+import numpy as np
+
 BASE_PROJECT = os.path.dirname(os.path.abspath(__file__))
 RDND_BASE_PATH = os.path.join(BASE_PROJECT, "RDND_proper")
 GROUNDED_SEGMENT_ANYTHING_BASE_PATH = os.path.join(BASE_PROJECT, "Grounded_Segment_Anything")
@@ -29,8 +32,13 @@ RVRT_deblur_shoval_train_py_blur20_TEST1_Step60000 = os.path.join(BASE_PROJECT, 
 
 DETECTION_DIRECTORY_PATH = os.path.join(BASE_PROJECT, OUTPUT, CAR_LICENSE_PLATE_RECOGNITION)
 
-#### NAFNet-width64.yml
-NEFNet_width64 = os.path.join(CHECKPOINTS, "BenDeblur", "NAFNet-width64.yml")
+#### NAFNet-ben
+base_dir_ben_code = os.path.join(BASE_PROJECT, "ben_deblur", "ImageDeBlur")
+
+### checkpoints
+Base_dir_NAFNet = os.path.join(CHECKPOINTS, "BenDeblur")
+NEFNet_width64 = os.path.join(Base_dir_NAFNet, "NAFNet-width64.py")
+NEFNet_model_path = os.path.join(Base_dir_NAFNet, "models","NAFNet-REDS-width64.pth")
 
 #### Model_New_Checkpoints
 Model_New_Checkpoints = os.path.join(BASE_PROJECT, "Model_New_Checkpoints")
@@ -57,3 +65,13 @@ class InputMethodForServices:
     segmentation    = "segmentation"
     BB              = "BB"
     polygon         = "polygon"
+
+
+class DictInput:
+    frames: list[np.ndarray] = "frames" # List of frames (numpy arrays) to align.
+    reference_frame: np.ndarray = "reference_frame" # (np.ndarray, optional): Reference frame to align against.
+    input_method: InputMethodForServices = "input_method"
+    user_input: dict = "user_input"
+
+class DictOutput:
+    frames: list[np.ndarray] = "frames"
