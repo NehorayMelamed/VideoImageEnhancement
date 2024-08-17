@@ -69,7 +69,7 @@ from tqdm import tqdm
 from easydict import EasyDict
 from easydict import EasyDict as edict
 from scipy.io import loadmat
-import scipy.signal as signal
+# import scipy.signal as signal
 import numpy as np
 import io
 import skimage

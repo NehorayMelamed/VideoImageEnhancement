@@ -1318,7 +1318,9 @@ def BB_convert_notation_XYWH_normalized_to_XYXY_tuple(BB_tuple, W_image=640, H_i
     y0 = y0_normalized * H_image
     W = w_normalized * W_image
     H = h_normalized * H_image
-    return (x0,y0,W,H)
+    x1 = x0 + W
+    y1 = y0 + H
+    return (x0,y0,x1,y1)
 
 def BB_convert_notation_XYWH_normalized_to_XYXY(BBs, W_image=640, H_image=640):
     #[X0,Y0,X1,Y1]->[X0,Y0,W,H]
