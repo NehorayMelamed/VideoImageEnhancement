@@ -123,7 +123,7 @@ def plot_tracking_results(pred_tracks, pred_visibility, frames):
 
 
 if __name__ == "__main__":
-    video_source = "/home/nehoray/PycharmProjects/VideoImageEnhancement/data/videos/scene_0_resized.mp4"
+    video_source = r"C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\videos\scene_0_resized.mp4"
     pred_tracks, pred_visibility, frames = track_points_in_video_auto(video_source, interactive=True, grid_size=5,
                                                                  fill_all=False)
     plot_tracking_results(pred_tracks, pred_visibility, frames)
