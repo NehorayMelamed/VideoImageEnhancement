@@ -4623,9 +4623,12 @@ class ECC_Layer_Torch_Points_Batch(nn.Module):
             # gtic()
             ### Get Indices: ###
             start_index = int(batch_index * number_of_images_per_batch)
-            stop_index = int(start_index + number_of_images_per_batch)
+            stop_index = min(int(start_index + number_of_images_per_batch), input_tensor.shape[0])
             current_input_tensor = input_tensor[start_index:stop_index]
             current_input_tensor_RGB = input_tensor_RGB[start_index:stop_index]
+            if current_input_tensor.shape[0]==1:
+                current_input_tensor = current_input_tensor.repeat(2,1,1,1)
+                current_input_tensor_RGB = current_input_tensor_RGB.repeat(2,1,1,1)
 
             ### Get H_matrix From Previous Registration Steps: ###
             if delta_p_init is not None:
@@ -4740,6 +4743,18 @@ class ECC_Layer_Torch_Points_Batch(nn.Module):
             X_mat_chosen_values = self.X_mat_chosen_values_list[level_index - 1]
             Y_mat_chosen_values = self.Y_mat_chosen_values_list[level_index - 1]
             reference_tensor_chosen_values = self.reference_tensor_chosen_values_list[level_index - 1]
+
+            ### TODO: DUDY PATCH!!!###
+            if current_level_input_tensor.shape[0] < X_mat_chosen_values.shape[0]:
+                X_mat_chosen_values = X_mat_chosen_values[0:current_level_input_tensor.shape[0]]
+                Y_mat_chosen_values = Y_mat_chosen_values[0:current_level_input_tensor.shape[0]]
+                Jx_chosen_values = Jx_chosen_values[0:current_level_input_tensor.shape[0]]
+                Jy_chosen_values = Jy_chosen_values[0:current_level_input_tensor.shape[0]]
+                J0_chosen_values = J0_chosen_values[0:current_level_input_tensor.shape[0]]
+                J1_chosen_values = J1_chosen_values[0:current_level_input_tensor.shape[0]]
+                self.Gt = self.Gt[0:current_level_input_tensor.shape[0]]
+                self.Gw = self.Gw[0:current_level_input_tensor.shape[0]]
+                self.Ge = self.Ge[0:current_level_input_tensor.shape[0]]
 
             ### Initialize H matrix: ###
             if delta_p_init is None:
