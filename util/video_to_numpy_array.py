@@ -1,6 +1,8 @@
 import cv2
+import numpy
 
-def get_video_frames(video_path):
+
+def get_video_frames(video_path) -> list[numpy.ndarray]:
     """
     Extracts frames from a video file.
 

@@ -51,5 +51,7 @@ if __name__ == '__main__':
     # resize_or_crop_images("/home/nehoray/PycharmProjects/VideoImageEnhancement/data/dgx_data/blur_cars/litle_amount_of_images",
     #                       "/home/nehoray/PycharmProjects/VideoImageEnhancement/data/dgx_data/blur_cars/litle_amount_of_images_resized",
     #                       resize_dims=(800, 600))
-    resize_or_crop_images("/home/nehoray/PycharmProjects/VideoImageEnhancement/data/dgx_data/blur_cars/litle_amount_of_images",
-                          "/home/nehoray/PycharmProjects/VideoImageEnhancement/data/dgx_data/blur_cars/litle_amount_of_images_resized_crop")
+
+    resize_or_crop_images(r"C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\Shaback\litle_amount_of_images_resized",
+                          r"C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\Shaback\litle_amount_of_images_resized_2",
+                          resize_dims=(224,224))
