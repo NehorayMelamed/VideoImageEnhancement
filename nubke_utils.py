@@ -42,6 +42,8 @@ from NonUniformBlurKernelEstimation.NonUniformBlurKernelEstimation.models.TwoHea
 from NonUniformBlurKernelEstimation.NonUniformBlurKernelEstimation.utils_NUBKE.visualization import save_kernels_grid, get_kernels_grid  # Importing visualization utilities from custom module
 from NonUniformBlurKernelEstimation.NonUniformBlurKernelEstimation.utils_NUBKE.restoration import RL_restore, combined_RL_restore
 
+from video_editor.imshow_pyqt import *
+
 ### Pause to Avoid Conflicts with OpenCV ###
 plt.pause(2)  # Pause to avoid conflicts with OpenCV
 # Converts a Tensor into a Numpy array
@@ -374,7 +376,162 @@ def save_kernels_grid_green(blurry_image, kernels, masks, image_name):
     imsave(image_name, img_as_ubyte(grid_to_draw.transpose((1, 2, 0))))
 
 
-def save_kernels_grid(blurry_image, kernels, masks, image_name):
+
+from scipy.stats import linregress
+
+
+# def fit_straight_line_to_kernel(blur_kernel):
+#     """
+#     Fits a straight line to the input blur kernel estimation array and returns the new blur kernel straight line fit.
+#
+#     Parameters:
+#     -----------
+#     blur_kernel : np.ndarray
+#         2D array representing the estimated blur kernel.
+#
+#     Returns:
+#     --------
+#     straight_line_fit : np.ndarray
+#         2D array representing the blur kernel with the straight line fit.
+#     angle: float
+#         Angle of the fitted line.
+#     """
+#     # Convert to binary image
+#     # display_media(cv2.resize((blur_kernel * 255).astype(np.uint8), (33 * 5, 33 * 5)))
+#     _, binary = cv2.threshold(blur_kernel, 0.5, 1.0, cv2.THRESH_BINARY)
+#
+#     # Find contours
+#     contours, _ = cv2.findContours(binary.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+#
+#     # Get the largest contour
+#     cnt = contours[0]
+#
+#     # Calculate the moments of the binary image
+#     M = cv2.moments(cnt)
+#     if M["m00"] != 0:
+#         cX = int(M["m10"] / M["m00"])
+#         cY = int(M["m01"] / M["m00"])
+#     else:
+#         cX, cY = 0, 0
+#
+#     # Perform PCA to find the main axis
+#     data_pts = cnt[:, 0, :]
+#     mean, eigenvectors = cv2.PCACompute(data_pts.astype(np.float32), mean=np.array([]))
+#
+#     # Get the angle of the principal component
+#     angle = np.arctan2(eigenvectors[0, 1], eigenvectors[0, 0])
+#
+#     # Fit a line using the points along the main axis
+#     vx, vy, x, y = cv2.fitLine(data_pts, cv2.DIST_L2, 0, 0.01, 0.01)
+#
+#     # Generate points along the fitted line
+#     line_points = []
+#     for i in range(-100, 100):
+#         line_points.append((x + vx * i, y + vy * i))
+#     line_points = np.array(line_points)
+#
+#     # Create an empty image to draw the line
+#     straight_line_fit = np.zeros_like(blur_kernel)
+#
+#     # Draw the fitted line
+#     for point in line_points:
+#         if 0 <= int(point[1]) < straight_line_fit.shape[0] and 0 <= int(point[0]) < straight_line_fit.shape[1]:
+#             straight_line_fit[int(point[1]), int(point[0])] = 1.0
+#     # display_media(cv2.resize((blur_kernel * 255).astype(np.uint8), (33 * 5, 33 * 5)))
+#     # display_media(cv2.resize((straight_line_fit * 255).astype(np.uint8), (33 * 5, 33 * 5)))
+#
+#     return straight_line_fit, np.degrees(angle)
+
+
+def fit_straight_line_to_kernel(blur_kernel):
+    """
+    Fits a straight line to the input blur kernel estimation array and returns the new blur kernel straight line fit.
+
+    Parameters:
+    -----------
+    blur_kernel : np.ndarray
+        2D array representing the estimated blur kernel.
+
+    Returns:
+    --------
+    straight_line_fit : np.ndarray
+        2D array representing the blur kernel with the straight line fit.
+    angle: float
+        Angle of the fitted line.
+    """
+    # Convert to binary image
+    _, binary = cv2.threshold(blur_kernel, 0.5, 1.0, cv2.THRESH_BINARY)
+
+    # Find contours
+    contours, _ = cv2.findContours(binary.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Get the largest contour
+    cnt = contours[0]
+
+    # Calculate the moments of the binary image
+    M = cv2.moments(cnt)
+    if M["m00"] != 0:
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+    else:
+        cX, cY = 0, 0
+
+    # Perform PCA to find the main axis
+    data_pts = cnt[:, 0, :]
+    mean, eigenvectors = cv2.PCACompute(data_pts.astype(np.float32), mean=np.array([]))
+
+    # Get the angle of the principal component
+    angle = np.arctan2(eigenvectors[0, 1], eigenvectors[0, 0])
+
+    # Fit a line using the points along the main axis
+    vx, vy, x, y = cv2.fitLine(data_pts, cv2.DIST_L2, 0, 0.01, 0.01)
+
+    # Calculate the endpoints of the line segment within the blur kernel bounds
+    try:
+        left_y = int((-x * vy / (vx+1e-3)) + y)
+    except Exception as e:
+        left_y = blur_kernel.shape[0]-1
+    try:
+        right_y = int(((blur_kernel.shape[1] - x) * vy / vx) + y)
+    except Exception as e:
+        right_y = int(0)
+    try:
+        top_x = int((-y * vx / (vy+1e-3)) + x)
+    except Exception as e:
+        top_x = blur_kernel.shape[1]-1
+    try:
+        bottom_x = int(((blur_kernel.shape[0] - y) * vx / vy) + x)
+    except Exception as e:
+        bottom_x = int(0)
+    # Clip the coordinates to be within the image bounds
+    left_y = np.clip(left_y, 0, blur_kernel.shape[0] - 1)
+    right_y = np.clip(right_y, 0, blur_kernel.shape[0] - 1)
+    top_x = np.clip(top_x, 0, blur_kernel.shape[1] - 1)
+    bottom_x = np.clip(bottom_x, 0, blur_kernel.shape[1] - 1)
+
+    # Create an empty image to draw the line
+    straight_line_fit = np.zeros_like(blur_kernel)
+
+    # Determine the two endpoints of the line within the bounds
+    if np.abs(vx) > np.abs(vy):
+        pt1 = (0, left_y)
+        pt2 = (blur_kernel.shape[1] - 1, right_y)
+    else:
+        pt1 = (top_x, 0)
+        pt2 = (bottom_x, blur_kernel.shape[0] - 1)
+
+    # Draw the fitted line
+    cv2.line(straight_line_fit, pt1, pt2, 1, 1)
+
+    ### multiply the straight line fit by the thresholded blur kernel to put it within bounds of the blur kernel: ###
+    straight_line_fit *= blur_kernel
+    # display_media(cv2.resize((blur_kernel * 255).astype(np.uint8), (33 * 5, 33 * 5)))
+    # display_media(cv2.resize((straight_line_fit * 255).astype(np.uint8), (33 * 5, 33 * 5)))
+
+    return straight_line_fit, np.degrees(angle)
+
+
+def save_kernels_grid(blurry_image, kernels, masks, flag_threshold_blur_kernel=False, quantile_to_threshold=0.9):
     '''
      Draw and save CONVOLUTION kernels in the blurry image.
      Notice that computed kernels are CORRELATION kernels, therefore are flipped.
@@ -391,24 +548,101 @@ def save_kernels_grid(blurry_image, kernels, masks, image_name):
     blurry_image = blurry_image.cpu().numpy()
     kernels = kernels.detach().cpu().numpy()
     masks = masks.detach().cpu().numpy()
+
+    ### Initialize image with blur kernels on it: ###
     grid_to_draw = 0.4*1 + 0.6*rgb2gray(blurry_image.transpose(1,2,0)).copy()
     grid_to_draw = np.repeat(grid_to_draw[None,:,:], 3, axis=0)
+
+    ### Initialize image with thresholded blur kernels on it: ###
+    grid_to_draw_thresholded = 0.4 * 1 + 0.6 * rgb2gray(blurry_image.transpose(1, 2, 0)).copy()
+    grid_to_draw_thresholded = np.repeat(grid_to_draw_thresholded[None, :, :], 3, axis=0)
+
+    ### Initialize image with straight line fit blur kernels on it: ###
+    grid_to_draw_straight_line = 0.4 * 1 + 0.6 * rgb2gray(blurry_image.transpose(1, 2, 0)).copy()
+    grid_to_draw_straight_line = np.repeat(grid_to_draw_straight_line[None, :, :], 3, axis=0)
+
+
+    ### Loop over the grid cells: ###
     for i in range(kernel_size, M - kernel_size // 2, kernel_size):
         for j in range(kernel_size, N - kernel_size // 2, kernel_size):
+
+            ### Get the average blur kernel over a region: ###
             kernel_ij = np.zeros((3, kernel_size, kernel_size))
             for k in range(K):
                 kernel_ij[None, :, :] += masks[k, i, j] * kernels[k]
+                # display_media(cv2.resize((kernel_ij[0]*255).astype(np.uint8), (33 * 5, 33 * 5)))
+
+            ### Threshold blur kernel if wanted: ###
+            if flag_threshold_blur_kernel:
+                threshold = np.quantile(kernel_ij, quantile_to_threshold)
+                kernel_ij_thresholded = (kernel_ij > threshold).astype(float)
+                # display_media(cv2.resize((kernel_ij[0]*255).astype(np.uint8), (33*5,33*5)))
+                # display_media(cv2.resize((kernel_ij_thresholded[0]*255).astype(np.uint8), (33*5,33*5)))
+
+            ### Perform straight line fit to the blur kernel: ###
+            kernel_ij_straight_line_fit, degree = fit_straight_line_to_kernel(kernel_ij_thresholded[0])
+            kernel_ij_straight_line_fit = np.concatenate([kernel_ij_straight_line_fit[None, :, :]]*3)
+
+            ### Get the normalized intensity of the blur kernel in current grid cell: ###
             kernel_ij_norm = (kernel_ij - kernel_ij.min()) / (kernel_ij.max() - kernel_ij.min())
-            grid_to_draw[0, i - kernel_size // 2:i + kernel_size // 2 + 1,
-            j - kernel_size // 2:j + kernel_size // 2 + 1] = 0.5 * kernel_ij_norm[0, ::-1, ::-1] + (1- kernel_ij_norm[0, ::-1, ::-1]) * grid_to_draw[0, i - kernel_size // 2:i + kernel_size // 2 + 1,
-                      j - kernel_size // 2:j + kernel_size // 2 + 1]
-            grid_to_draw[1:, i - kernel_size // 2:i + kernel_size // 2 + 1,
-            j - kernel_size // 2:j + kernel_size // 2 + 1] = (1- kernel_ij_norm[1:, ::-1, ::-1]) * grid_to_draw[1:, i - kernel_size // 2:i + kernel_size // 2 + 1,
-                      j - kernel_size // 2:j + kernel_size // 2 + 1]
+
+            ### Get slice indices: ###
+            h_start = i - kernel_size // 2
+            h_end = i + kernel_size // 2 + 1
+            w_start = j - kernel_size // 2
+            w_end = j + kernel_size // 2 + 1
+
+            ### Plot blur kernel on top of image: ###
+            grid_to_draw[0, h_start:h_end, w_start:w_end] = 0.5 * kernel_ij_norm[0, ::-1, ::-1] + \
+                                                            (1 - kernel_ij_norm[0, ::-1, ::-1]) * grid_to_draw[0,
+                                                                                                  h_start:h_end,
+                                                                                                  w_start:w_end]
+            grid_to_draw[1:, h_start:h_end, w_start:w_end] = (1 - kernel_ij_norm[1:, ::-1, ::-1]) * \
+                                                             grid_to_draw[1:, h_start:h_end, w_start:w_end]
+
+            ### Plot blur kernel thresholded on top of image: ###
+            grid_to_draw_thresholded[0, h_start:h_end, w_start:w_end] = 0.5 * kernel_ij_thresholded[0, ::-1, ::-1] + \
+                                                            (1 - kernel_ij_thresholded[0, ::-1, ::-1]) * grid_to_draw_thresholded[0,
+                                                                                                  h_start:h_end,
+                                                                                                  w_start:w_end]
+            grid_to_draw_thresholded[1:, h_start:h_end, w_start:w_end] = (1 - kernel_ij_thresholded[1:, ::-1, ::-1]) * \
+                                                             grid_to_draw_thresholded[1:, h_start:h_end, w_start:w_end]
+
+            ### Plot blur kernel straight line fit on top of image: ###
+            grid_to_draw_straight_line[0, h_start:h_end, w_start:w_end] = 0.5 * kernel_ij_straight_line_fit[0, ::-1, ::-1] + \
+                                                                        (1 - kernel_ij_straight_line_fit[0, ::-1, ::-1]) * grid_to_draw_straight_line[0,
+                                                                                      h_start:h_end,
+                                                                                      w_start:w_end]
+            grid_to_draw_straight_line[1:, h_start:h_end, w_start:w_end] = (1 - kernel_ij_straight_line_fit[1:, ::-1, ::-1]) * \
+                                                                         grid_to_draw_straight_line[1:, h_start:h_end, w_start:w_end]
+            # display_media(grid_to_draw[0])
+            # display_media(grid_to_draw_thresholded[0])
+            # display_media(grid_to_draw_straight_line[0])
+            # display_media(cv2.resize((kernel_ij_straight_line_fit[0]*255).astype(np.uint8), (33*5,33*5)))
+
+    # for i in range(kernel_size, M - kernel_size // 2, kernel_size):
+    #     for j in range(kernel_size, N - kernel_size // 2, kernel_size):
+    #         kernel_ij = np.zeros((3, kernel_size, kernel_size))
+    #         for k in range(K):
+    #             kernel_ij[None, :, :] += masks[k, i, j] * kernels[k]
+    #
+    #         kernel_ij_norm = (kernel_ij - kernel_ij.min()) / (kernel_ij.max() - kernel_ij.min())
+    #         # h_slice = i - kernel_size // 2 : i + kernel_size // 2 + 1
+    #         # w_slice = j - kernel_size // 2 : j + kernel_size // 2 + 1
+    #         grid_to_draw[0, i - kernel_size // 2:i + kernel_size // 2 + 1,
+    #         j - kernel_size // 2:j + kernel_size // 2 + 1] = 0.5 * kernel_ij_norm[0, ::-1, ::-1] + (1-kernel_ij_norm[0, ::-1, ::-1]) * grid_to_draw[0, i - kernel_size // 2:i + kernel_size // 2 + 1,
+    #                   j - kernel_size // 2:j + kernel_size // 2 + 1]
+    #
+    #         grid_to_draw[1:, i - kernel_size // 2:i + kernel_size // 2 + 1,
+    #         j - kernel_size // 2:j + kernel_size // 2 + 1] = (1- kernel_ij_norm[1:, ::-1, ::-1]) * grid_to_draw[1:, i - kernel_size // 2:i + kernel_size // 2 + 1,
+    #                   j - kernel_size // 2:j + kernel_size // 2 + 1]
 
 
     grid_to_draw = np.clip(grid_to_draw, 0, 1)
-    imsave(image_name, img_as_ubyte(grid_to_draw.transpose((1, 2, 0))))
+    grid_to_draw_thresholded = np.clip(grid_to_draw_thresholded, 0, 1)
+    grid_to_draw_straight_line = np.clip(grid_to_draw_straight_line, 0, 1)
+    return grid_to_draw, grid_to_draw_thresholded, grid_to_draw_straight_line
+    # imsave(image_name, img_as_ubyte(grid_to_draw.transpose((1, 2, 0))))
 
 
 
@@ -583,7 +817,7 @@ def get_avg_kernel_from_segmentation_masks_and_kernels(basis_kernels, masks, seg
     return avg_kernel  # Return the average kernel
 
 
-def get_avg_kernel_from_segmentation_masks_and_kernels2(basis_kernels, masks, seg_mask=None, flag_plot=False):
+def get_avg_kernel_from_segmentation_masks_and_kernels2(basis_kernels, masks, seg_mask=None, flag_plot=False, threshold_quantile=0.95):
     """
     Computes the average kernel inside the segmentation mask.
 
@@ -613,13 +847,30 @@ def get_avg_kernel_from_segmentation_masks_and_kernels2(basis_kernels, masks, se
 
     ### Average Kernel: ###
     kernel_masks_weighted_by_segmentation = (masks * seg_mask.to(masks.device)).mean([-1,-2], True)  # Weighted masks by segmentation mask
-    average_kernel_in_segmentation = (basis_kernels * kernel_masks_weighted_by_segmentation).sum(1,True).squeeze()  # Compute the average kernel
+    average_kernel_in_segmentation_torch = (basis_kernels * kernel_masks_weighted_by_segmentation).sum(1,True).squeeze()  # Compute the average kernel
+
+    ### Average Kernel Thresholded and Straight Line Fit: ###
+    threshold = average_kernel_in_segmentation_torch.quantile(threshold_quantile)
+    threshold = max(threshold, 5e-5)
+    average_kernel_in_segmentation_thresholded = (average_kernel_in_segmentation_torch > threshold).float()
+    average_kernel_in_segmentation_thresholded_RGB = BW2RGB(average_kernel_in_segmentation_thresholded).cpu().numpy()
+    average_kernel_in_segmentation_straight_line, angle = fit_straight_line_to_kernel(average_kernel_in_segmentation_thresholded.cpu().numpy())
+    average_kernel_in_segmentation_thresholded_torch = torch.tensor(average_kernel_in_segmentation_thresholded).cuda()
+    average_kernel_in_segmentation_straight_line_torch = torch.tensor(average_kernel_in_segmentation_straight_line).cuda()
+
+    ### Noramlize: ###
+    average_kernel_in_segmentation_torch = average_kernel_in_segmentation_torch / average_kernel_in_segmentation_torch.sum()
+    average_kernel_in_segmentation_thresholded_torch = average_kernel_in_segmentation_thresholded_torch / average_kernel_in_segmentation_thresholded_torch.sum()
+    average_kernel_in_segmentation_straight_line_torch = average_kernel_in_segmentation_straight_line_torch / average_kernel_in_segmentation_straight_line_torch.sum()
+    # display_media(cv2.resize((average_kernel_in_segmentation.cpu().numpy()*255).astype(np.uint8), (33*5,33*5)))
+    # display_media(cv2.resize((average_kernel_in_segmentation_thresholded.cpu().numpy()*255).astype(np.uint8), (33*5,33*5)))
+    # display_media(cv2.resize((average_kernel_in_segmentation_straight_line*255).astype(np.uint8), (33*5,33*5)))
     # average_kernel_per_pixel = (masks * seg_mask.to(masks.device))  #TODO: i left it alone because it would require too much memory
 
     if flag_plot:
-        imshow_torch_temp(average_kernel_in_segmentation.unsqueeze(0), "avg_kernel")  # Display the average kernel
+        imshow_torch_temp(average_kernel_in_segmentation_torch.unsqueeze(0), "avg_kernel")  # Display the average kernel
 
-    return average_kernel_in_segmentation  # Return the average kernel
+    return average_kernel_in_segmentation_torch, average_kernel_in_segmentation_thresholded_torch, average_kernel_in_segmentation_straight_line_torch  # Return the average kernel
 
 
 # def find_kernels_NUBKE(blurred_image, output_dir):
@@ -670,6 +921,36 @@ def get_avg_kernel_from_segmentation_masks_and_kernels2(basis_kernels, masks, se
 #     #     plt.savefig(f"/raid/yoav/temp_garbage/base_kernel_{str(i).zfill(2)}.png")
 #
 #     return kernels_val_n
+
+def RGB2BW(input_image):
+    if len(input_image.shape) == 2:
+        return input_image
+
+    if len(input_image.shape) == 3:
+        if type(input_image) == torch.Tensor and input_image.shape[0] == 3:
+            grayscale_image = 0.299 * input_image[0:1, :, :] + 0.587 * input_image[1:2, :, :] + 0.114 * input_image[2:3, :, :]
+        elif type(input_image) == np.ndarray and input_image.shape[-1] == 3:
+            grayscale_image = 0.299 * input_image[:, :, 0:1] + 0.587 * input_image[:, :, 1:2] + 0.114 * input_image[:, :, 2:3]
+        else:
+            grayscale_image = input_image
+
+    elif len(input_image.shape) == 4:
+        if type(input_image) == torch.Tensor and input_image.shape[1] == 3:
+            grayscale_image = 0.299 * input_image[:, 0:1, :, :] + 0.587 * input_image[:, 1:2, :, :] + 0.114 * input_image[:, 2:3, :, :]
+        elif type(input_image) == np.ndarray and input_image.shape[-1] == 3:
+            grayscale_image = 0.299 * input_image[:, :, :, 0:1] + 0.587 * input_image[:, :, :, 1:2] + 0.114 * input_image[:, :, :, 2:3]
+        else:
+            grayscale_image = input_image
+
+    elif len(input_image.shape) == 5:
+        if type(input_image) == torch.Tensor and input_image.shape[2] == 3:
+            grayscale_image = 0.299 * input_image[:, :, 0:1, :, :] + 0.587 * input_image[:, :, 1:2, :, :] + 0.114 * input_image[:, :, 2:3, :, :]
+        elif type(input_image) == np.ndarray and input_image.shape[-1] == 3:
+            grayscale_image = 0.299 * input_image[:, :, :, :, 0:1] + 0.587 * input_image[:, :, :, :, 1:2] + 0.114 * input_image[:, :, :, :, 2:3]
+        else:
+            grayscale_image = input_image
+
+    return grayscale_image
 
 
 def BW2RGB(input_image):
@@ -732,11 +1013,13 @@ def find_kernels_NUBKE(blurred_image, output_dir=None, device='cuda:0', model=No
     ### Load Pre-trained Model ###
     if model is not None:
         two_heads = model.eval() # Set model to evaluation mode
+        two_heads = two_heads.cuda()  # Set model to evaluation mode
     else:
         two_heads = TwoHeadsNetwork(K_number_of_base_elements).to(device)  # Initialize the model and move it to the specified device
         print("Loading model weights")
         two_heads.load_state_dict(torch.load(model_full_filename, map_location=device))  # Load model weights
         two_heads.eval()  # Set model to evaluation mode
+        two_heads = two_heads.cuda()  # Set model to evaluation mode
 
     ### Preprocess Blurred Image ###
     blurred_image = blurred_image.squeeze()  # Remove singleton dimensions
@@ -747,6 +1030,7 @@ def find_kernels_NUBKE(blurred_image, output_dir=None, device='cuda:0', model=No
         kernels_estimated, masks_estimated = two_heads(BW2RGB(torch_get_4D(blurry_tensor_to_compute_kernels.cuda())))  # Estimate kernels and masks
 
     ### Prepare and Save Kernel Grid Image ###
+    output_dir = r'C:\Users\orior\PycharmProjects\VideoImageEnhancement'
     kernels_val_n = kernels_estimated[0]  # Extract the first set of estimated kernels
     kernels_val_n_ext = kernels_val_n[:, np.newaxis, :, :]  # Add a new axis for the channel dimension
     blur_kernel_val_grid = make_grid(kernels_val_n_ext, nrow=K_number_of_base_elements, normalize=True, scale_each=True, pad_value=1)  # Create a grid of kernel images
@@ -761,10 +1045,24 @@ def find_kernels_NUBKE(blurred_image, output_dir=None, device='cuda:0', model=No
         imsave(os.path.join(output_dir, '_masks.png'), img_as_ubyte(blur_mask_val_grid.detach().cpu().numpy().transpose((1, 2, 0))))  # Save the mask grid image
 
     ### Save Kernels Grid Image ###
-    if flag_save and output_dir is not None:
-        save_kernels_grid(blurred_image, torch.flip(kernels_estimated[0], dims=(1, 2)), masks_estimated[0], os.path.join(output_dir, '_kernels_grid.png'))  # Save the kernels grid image
+    (image_with_blur_kernels_on_it,
+     image_with_blur_kernels_thresholded_on_it,
+     image_with_blur_kernels_straight_line_on_it) = save_kernels_grid(blurred_image,
+                                                                      torch.flip(kernels_estimated[0], dims=(1, 2)),
+                                                                      masks_estimated[0],
+                                                                      flag_threshold_blur_kernel=True,
+                                                                      quantile_to_threshold=0.95)  # Save the kernels grid image
+    # imsave(os.path.join(output_dir, '_kernels_grid.png'), img_as_ubyte(image_with_blur_kernels_on_it.transpose((1, 2, 0))))
+    # imsave(os.path.join(output_dir, '_kernels_grid_thresholded.png'), img_as_ubyte(image_with_blur_kernels_thresholded_on_it.transpose((1, 2, 0))))
+    # imsave(os.path.join(output_dir, '_kernels_grid_straight_line.png'), img_as_ubyte(image_with_blur_kernels_straight_line_on_it.transpose((1, 2, 0))))
+    # display_media((image_with_blur_kernels_on_it*255).astype(np.uint8).transpose([1,2,0]))
+    # display_media((image_with_blur_kernels_thresholded_on_it*255).astype(np.uint8).transpose([1,2,0]))
+    # display_media((image_with_blur_kernels_straight_line_on_it*255).astype(np.uint8).transpose([1,2,0]))
 
-    return kernels_val_n  # Return the estimated kernels
+    # if flag_save and output_dir is not None:
+    #     image_with_blur_kernels_on_it = save_kernels_grid(blurred_image, torch.flip(kernels_estimated[0], dims=(1, 2)), masks_estimated[0], os.path.join(output_dir, '_kernels_grid.png'))  # Save the kernels grid image
+    #     # imsave(os.path.join(output_dir, '_kernels_grid.png'), img_as_ubyte(image_with_blur_kernels_on_it.transpose((1, 2, 0))))
+    return kernels_val_n, image_with_blur_kernels_on_it, image_with_blur_kernels_thresholded_on_it, image_with_blur_kernels_straight_line_on_it  # Return the estimated kernels
 
 
 def find_kernel_NUBKE(blurred_image, seg_mask=None):
@@ -853,11 +1151,13 @@ def get_KernelBasis_Masks_AvgKernel_From_NUBKE(blurred_image, seg_mask, NUBKE_mo
         kernels, masks = NUBKE_model(blurry_tensor_to_compute_kernels.unsqueeze(0).cuda()) # Estimate kernels and masks
 
     ### Compute Average Kernel ###
-    avg_kernel = get_avg_kernel_from_segmentation_masks_and_kernels2(kernels,
+    (average_kernel_in_segmentation,
+     average_kernel_in_segmentation_thresholded_torch,
+     average_kernel_in_segmentation_straight_line_torch) = get_avg_kernel_from_segmentation_masks_and_kernels2(kernels,
                                                                     masks,
                                                                     seg_mask)  # Compute the average kernel using the segmentation mask
+    return kernels, masks, average_kernel_in_segmentation, average_kernel_in_segmentation_thresholded_torch, average_kernel_in_segmentation_straight_line_torch
 
-    return kernels, masks, avg_kernel
 
 
 def get_deblurred_image_from_kernels_and_masks(blurred_image,
@@ -995,25 +1295,31 @@ def deblur_image_pipeline_NUBKE(blurred_image,
     - output: torch.Tensor of shape [C, H, W], the deblurred image.
     """
     ### Initial Restoration Tensor ###
-    kernels_basis_tensor, masks, avg_kernel = get_KernelBasis_Masks_AvgKernel_From_NUBKE(blurred_image, seg_mask, NUBKE_model, gamma_factor=2.2)
+    (kernels_basis_tensor, masks,
+     avg_kernel, avg_kernel_thresholded, avg_kernel_straight_line) = get_KernelBasis_Masks_AvgKernel_From_NUBKE(
+        blurred_image,
+        seg_mask,
+        NUBKE_model,
+        gamma_factor=2.2)
 
     ### Deblur the Image ###
-    deblurred_entire_image = get_deblurred_image_from_kernels_and_masks(blurred_image.cuda(),
-                                                        kernels_basis_tensor,
-                                                        masks,
-                                                        avg_kernel,
-                                                        K=K,
-                                                        n_iters=n_iters,
-                                                        device=device,
-                                                        SAVE_INTERMIDIATE=SAVE_INTERMIDIATE,
-                                                        saturation_threshold=saturation_threshold,
-                                                        reg_factor=reg_factor,
-                                                        optim_iters=optim_iters,
-                                                        gamma_correction_factor=gamma_correction_factor,
-                                                        apply_dilation=apply_dilation,
-                                                        apply_smoothing=apply_smoothing,
-                                                        apply_erosion=apply_erosion,
-                                                        flag_use_avg_kernel_on_everything=flag_use_avg_kernel_on_everything)
+    deblurred_entire_image = get_deblurred_image_from_kernels_and_masks(
+        blurred_image.cuda(),
+        kernels_basis_tensor,
+        masks,
+        avg_kernel,  #TODO: maybe use the thresholded or straight line fit average blur kernel
+        K=K,
+        n_iters=n_iters,
+        device=device,
+        SAVE_INTERMIDIATE=SAVE_INTERMIDIATE,
+        saturation_threshold=saturation_threshold,
+        reg_factor=reg_factor,
+        optim_iters=optim_iters,
+        gamma_correction_factor=gamma_correction_factor,
+        apply_dilation=apply_dilation,
+        apply_smoothing=apply_smoothing,
+        apply_erosion=apply_erosion,
+        flag_use_avg_kernel_on_everything=flag_use_avg_kernel_on_everything)
 
     ### Get Image Crops After Deblur: ###
     deblurred_crop = crop_image_around_segmentation_mask(torch_to_numpy(deblurred_entire_image.squeeze()), torch_to_numpy(seg_mask.squeeze()))
@@ -1022,7 +1328,7 @@ def deblur_image_pipeline_NUBKE(blurred_image,
     if flag_plot:
         imshow_torch_temp(deblurred_entire_image[0].clip(0, 1), name="NUBKE_estimation")  # Display the deblurred image
 
-    return avg_kernel, deblurred_entire_image, deblurred_crop   # Return the deblurred image
+    return avg_kernel, avg_kernel_thresholded, avg_kernel_straight_line, deblurred_entire_image, deblurred_crop   # Return the deblurred image
 
 
 
@@ -1326,7 +1632,8 @@ def get_blur_kernel_and_deblurred_image_using_NUBKE(blurry_image_torch,
         NUBKE_model = TwoHeadsNetwork(K_number_of_base_elements).to('cuda')  # Initialize the model and move it to the specified device
         print("Loading model weights")
         NUBKE_model.load_state_dict(torch.load(model_file, map_location=device))  # Load model weights
-        NUBKE_model.eval()  # Set model to evaluation mode
+        NUBKE_model.eval()  # Set model to evaluation modw
+        NUBKE_model= NUBKE_model.cuda()  # Set model to evaluation modw
 
     ### Segmentation Mask: ###
     if segmentation_mask_torch is None:
@@ -1335,16 +1642,21 @@ def get_blur_kernel_and_deblurred_image_using_NUBKE(blurry_image_torch,
 
     ### Get Blur Kernel: ###
     # [K_kernels_basis_tensor] = [K_number_of_base_elements, K_size, K_size]
-    K_kernels_basis_tensor = find_kernels_NUBKE(blurry_image_torch / 255,
-                                                output_dir=None,
-                                                model=NUBKE_model,
-                                                model_full_filename='',
-                                                K_number_of_base_elements=K_number_of_base_elements,
-                                                gamma_factor=gamma_correction_factor,
-                                                flag_save=False)  # Gamma correction factor)
+    (K_kernels_basis_tensor,
+     image_with_blur_kernels_on_it,
+     image_with_blur_kernels_thresholded_on_it,
+     image_with_blur_kernels_straight_line_on_it) = find_kernels_NUBKE(BW2RGB(blurry_image_torch) / 255,
+                                                                       # TODO: change back
+                                                                       output_dir=None,
+                                                                       model=NUBKE_model,
+                                                                       model_full_filename='',
+                                                                       K_number_of_base_elements=K_number_of_base_elements,
+                                                                       gamma_factor=gamma_correction_factor,
+                                                                       flag_save=False)  # Gamma correction factor)
 
     ### Deblur The Image: ###
-    avg_kernel, deblurred_image, deblurred_crop = deblur_image_pipeline_NUBKE(blurry_image_torch / 255,
+    (avg_kernel, avg_kernel_thresholded,
+     avg_kernel_straight_line, deblurred_image, deblurred_crop) = deblur_image_pipeline_NUBKE(blurry_image_torch / 255,
                                                               seg_mask=segmentation_mask_torch,
                                                               NUBKE_model=NUBKE_model,
                                                               n_iters=n_iters,
@@ -1360,7 +1672,9 @@ def get_blur_kernel_and_deblurred_image_using_NUBKE(blurry_image_torch,
                                                               flag_use_avg_kernel_on_everything=flag_use_avg_kernel_on_everything,
                                                               flag_plot=False)
 
-    return avg_kernel, K_kernels_basis_tensor, deblurred_image, deblurred_crop
+    return (avg_kernel, avg_kernel_thresholded, avg_kernel_straight_line,
+            K_kernels_basis_tensor, deblurred_image, deblurred_crop,
+            image_with_blur_kernels_on_it, image_with_blur_kernels_thresholded_on_it, image_with_blur_kernels_straight_line_on_it)
 
 
 

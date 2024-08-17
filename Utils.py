@@ -2,55 +2,98 @@
 
 
 ### Imports: ###
-from scipy.interpolate import griddata
-import os
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
-from skimage.transform import resize, warp
-from skimage.measure import ransac
-from skimage.transform import AffineTransform, ProjectiveTransform
-from skimage.feature import match_descriptors, ORB
-from skimage.color import rgb2gray
+# from scipy.interpolate import griddata
+# import os
+# import numpy as np
+# import cv2
+# import matplotlib.pyplot as plt
+# from skimage.transform import resize, warp
+# from skimage.measure import ransac
+# from skimage.transform import AffineTransform, ProjectiveTransform
+# from skimage.feature import match_descriptors, ORB
+# from skimage.color import rgb2gray
 
-from skimage.measure import find_contours  # for finding contours in the segmentation mask
+# from skimage.measure import find_contours  # for finding contours in the segmentation mask
 from skimage.draw import polygon  # for creating the segmentation mask with 1s inside the polygon
 
-### Rapid Base Imports: ###
-import matplotlib
-from RapidBase.import_all import *
-from RapidBase.Anvil._transforms.shift_matrix_subpixel import _shift_matrix_subpixel_fft_batch_with_channels
-import torchvision.transforms as transforms
-from torchvision.models.optical_flow import raft_large
 
-matplotlib.use('TkAgg')
+### Rapid Base Imports: ###
+# import matplotlib
+from RapidBase.import_all import *
+# from RapidBase.Anvil._transforms.shift_matrix_subpixel import _shift_matrix_subpixel_fft_batch_with_channels
+# import torchvision.transforms as transforms
+# from torchvision.models.optical_flow import raft_large
+
+
+# matplotlib.use('TkAgg')
 # from VideoImageEnhancement.Tracking.co_tracker.co_tracker import *
-from scipy.optimize import minimize
+# from scipy.optimize import minimize
 import matplotlib.path as mpath
 
+
 ### Wiener Filtering: ###
+# import numpy as np
+# import cv2
+# from scipy.signal import convolve2d
+# from scipy.fft import fft2, ifft2, fftshift
+# import matplotlib.pyplot as plt
 import numpy as np
 import cv2
-from scipy.signal import convolve2d
-from scipy.fft import fft2, ifft2, fftshift
+# from skimage import data, restoration
+# from skimage.restoration import unsupervised_wiener
 import matplotlib.pyplot as plt
-import numpy as np
-import cv2
-from skimage import data, restoration
-from skimage.restoration import unsupervised_wiener
-import matplotlib.pyplot as plt
-from scipy.signal import fftconvolve
-from skimage.restoration import estimate_sigma  # For estimating noise standard deviation
+# from scipy.signal import fftconvolve
+# from skimage.restoration import estimate_sigma  # For estimating noise standard deviation
 import torch
 from typing import Tuple
 from torch import Tensor
-from skimage.util import img_as_float
+# from skimage.util import img_as_float
 from PARAMETER import *
 start = -1
 end = -1
 from checkpoints.FlowFormer.core.FlowFormer.LatentCostFormer.transformer import FlowFormer
 from checkpoints.FlowFormer.configs.sintel import get_cfg
 from checkpoints.irr.models.IRR_PWC import PWCNet
+
+from scipy.stats import linregress
+
+
+def fit_straight_line_to_kernel(blur_kernel):
+    """
+    Fits a straight line to the input blur kernel estimation array and returns the new blur kernel straight line fit.
+
+    Parameters:
+    -----------
+    blur_kernel : np.ndarray
+        2D array representing the estimated blur kernel.
+
+    Returns:
+    --------
+    straight_line_fit : np.ndarray
+        2D array representing the blur kernel with the straight line fit.
+    """
+    # Get the shape of the blur kernel
+    M, N = blur_kernel.shape
+
+    # Create meshgrid for coordinates
+    X, Y = np.meshgrid(np.arange(N), np.arange(M))
+
+    # Flatten the arrays for linear regression
+    X_flat = X.flatten()
+    Y_flat = Y.flatten()
+    blur_kernel_flat = blur_kernel.flatten()
+
+    # Perform linear regression
+    slope, intercept, r_value, p_value, std_err = linregress(X_flat, blur_kernel_flat)
+
+    # Calculate the straight line fit
+    straight_line_fit_flat = intercept + slope * X_flat
+
+    # Reshape the flat array back to the original shape
+    straight_line_fit = straight_line_fit_flat.reshape(M, N)
+
+    return straight_line_fit
+
 
 def polygon_to_bounding_box_and_mask(polygon_points, input_shape):
     """
@@ -127,13 +170,12 @@ def bounding_box_to_polygon_and_mask(bounding_box, input_shape):
     return polygon_points, segmentation_mask  # return the polygon points and segmentation mask
 
 
+@staticmethod
 def mask_to_bounding_box_and_polygon(segmentation_mask):
     """
     This function takes a segmentation mask and returns:
     1. The minimum containing bounding box in the format (X0, Y0, X1, Y1).
     2. A list of polygon points representing the contour of the mask area.
-
-    Former function name: N/A
 
     Parameters:
     segmentation_mask (np.ndarray): A binary mask with the shape (height, width), where 1s represent the mask area.
@@ -145,7 +187,6 @@ def mask_to_bounding_box_and_polygon(segmentation_mask):
     polygon_points (list): A list of tuples representing the contour points of the mask area.
                            Each tuple contains two integers (x, y).
     """
-
     ### Find Contours in the Segmentation Mask: ###
     contours = find_contours(segmentation_mask, level=0.5)  # find contours at the mask boundaries
 
@@ -166,6 +207,188 @@ def mask_to_bounding_box_and_polygon(segmentation_mask):
     bounding_box = (X0, Y0, X1, Y1)  # create the bounding box tuple
 
     return bounding_box, polygon_points  # return the bounding box and polygon points
+
+def mask_to_bounding_box_and_best_fit_polygon(segmentation_mask):
+    """
+    This function takes a segmentation mask and returns:
+    1. The minimum containing bounding box in the format (X0, Y0, X1, Y1).
+    2. A polygon with exactly 4 points representing the best-fit rectangle.
+
+    Parameters:
+    segmentation_mask (np.ndarray): A binary mask with the shape (height, width), where 1s represent the mask area.
+
+    Returns:
+    bounding_box (tuple): A tuple of four integers (X0, Y0, X1, Y1) representing the bounding box coordinates.
+                          X0, Y0 are the coordinates of the top-left corner.
+                          X1, Y1 are the coordinates of the bottom-right corner.
+    best_fit_polygon (list): A list of tuples representing the four points of the best-fit rectangle.
+                             Each tuple contains two integers (x, y).
+    """
+    ### Find Contours in the Segmentation Mask: ###
+    contours = find_contours(segmentation_mask, level=0.5)  # find contours at the mask boundaries
+
+    ### Check if Contours Were Found: ###
+    if len(contours) == 0:
+        raise ValueError("No contours found in the segmentation mask.")
+
+    ### Extract the Largest Contour: ###
+    largest_contour = max(contours, key=len)  # select the largest contour by length
+
+    ### Convert Contour to Integer Coordinates: ###
+    contour_points = np.array([(int(x), int(y)) for y, x in largest_contour],
+                              dtype=np.float32)  # convert contour to integer coordinates
+
+    ### Calculate Minimum Area Rectangle: ###
+    rect = cv2.minAreaRect(contour_points)
+    box = cv2.boxPoints(rect)
+    box = np.int0(box)  # convert to integer coordinates
+
+    ### Calculate Bounding Box: ###
+    x_coords, y_coords = zip(*box)  # unzip the box points into x and y coordinates
+    X0, Y0 = min(x_coords), min(y_coords)  # calculate the minimum x and y coordinates
+    X1, Y1 = max(x_coords), max(y_coords)  # calculate the maximum x and y coordinates
+    bounding_box = (X0, Y0, X1, Y1)  # create the bounding box tuple
+
+    best_fit_polygon = [(x, y) for x, y in box]
+
+    return bounding_box, best_fit_polygon  # return the bounding box and best-fit polygon
+
+
+def add_prefix_to_dict_keys(input_dict, prefix=''):
+    """
+    Add a prefix to each key in the input dictionary.
+
+    Args:
+        input_dict (dict): The input dictionary.
+        prefix (str): The prefix to add to each key.
+
+    Returns:
+        dict: A new dictionary with the prefix added to each key.
+    """
+    output_dict = {f"{prefix}{key}": value for key, value in input_dict.items()}
+    return output_dict
+
+
+def merge_dicts_with_missing_keys(input_dict1, input_dict2):
+    """
+    Merge two dictionaries by adding key-value pairs from input_dict2 to input_dict1 if the key does not exist in input_dict1.
+
+    Args:
+        input_dict1 (dict): The first dictionary.
+        input_dict2 (dict): The second dictionary to merge into the first one.
+
+    Returns:
+        dict: The updated first dictionary with missing key-value pairs added from the second dictionary.
+    """
+    for key, value in input_dict2.items():
+        if key not in input_dict1:
+            input_dict1[key] = value
+    return input_dict1
+
+
+def cut_video_segment(input_video_path, start_second, end_second, output_video_path):
+    """
+    Cut a segment from the input video and save it to the output file.
+
+    Args:
+        input_video_path (str): The full file path to the input video.
+        start_second (float): The start time in seconds for the segment to cut.
+        end_second (float): The end time in seconds for the segment to cut.
+        output_video_path (str): The full file path to save the output video.
+    """
+    # Open the input video file
+    cap = cv2.VideoCapture(input_video_path)
+
+    # Get the frames per second (fps) and total number of frames
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Calculate the start and end frames
+    start_frame = int(start_second * fps)
+    end_frame = int(end_second * fps)
+
+    # Ensure the end frame is not beyond the total frames in the video
+    end_frame = min(end_frame, total_frames - 1)
+
+    # Check if start and end frames are valid
+    if start_frame >= end_frame:
+        print("Invalid start or end time.")
+        cap.release()
+        return
+
+    # Set the video capture to the start frame
+    cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+
+    # Get the width and height of the video frames
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    # Define the codec and create VideoWriter object
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # You can also use 'XVID', 'MJPG', etc.
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, (frame_width, frame_height))
+
+    # Read frames and write to the output video file
+    for frame_num in range(start_frame, end_frame + 1):
+        ret, frame = cap.read()
+        if not ret:
+            break
+        out.write(frame)
+
+    # Release the VideoCapture and VideoWriter objects
+    cap.release()
+    out.release()
+
+    print(f"Segment from {start_second} to {end_second} seconds saved to {output_video_path}")
+
+
+# cut_video_segment(r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\videos\DATA/Long_Market_Place.mp4',
+#                   start_second=18,
+#                   end_second=28,
+#                   output_video_path=r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\videos\DATA/Market_Place2.mp4')
+# bla = 1
+
+# video_images_to_video(images_path=r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\videos\Shabak_Truck',
+#                       video_name=r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\videos\DATA/Shabak_Truck.avi')
+
+# def mask_to_bounding_box_and_polygon(segmentation_mask):
+#     """
+#     This function takes a segmentation mask and returns:
+#     1. The minimum containing bounding box in the format (X0, Y0, X1, Y1).
+#     2. A list of polygon points representing the contour of the mask area.
+#
+#     Former function name: N/A
+#
+#     Parameters:
+#     segmentation_mask (np.ndarray): A binary mask with the shape (height, width), where 1s represent the mask area.
+#
+#     Returns:
+#     bounding_box (tuple): A tuple of four integers (X0, Y0, X1, Y1) representing the bounding box coordinates.
+#                           X0, Y0 are the coordinates of the top-left corner.
+#                           X1, Y1 are the coordinates of the bottom-right corner.
+#     polygon_points (list): A list of tuples representing the contour points of the mask area.
+#                            Each tuple contains two integers (x, y).
+#     """
+#
+#     ### Find Contours in the Segmentation Mask: ###
+#     contours = find_contours(segmentation_mask, level=0.5)  # find contours at the mask boundaries
+#
+#     ### Check if Contours Were Found: ###
+#     if len(contours) == 0:
+#         raise ValueError("No contours found in the segmentation mask.")
+#
+#     ### Extract the Largest Contour: ###
+#     largest_contour = max(contours, key=len)  # select the largest contour by length
+#
+#     ### Convert Contour to Integer Coordinates: ###
+#     polygon_points = [(int(x), int(y)) for y, x in largest_contour]  # convert contour to integer coordinates
+#
+#     ### Calculate Bounding Box: ###
+#     x_coords, y_coords = zip(*polygon_points)  # unzip the polygon points into x and y coordinates
+#     X0, Y0 = min(x_coords), min(y_coords)  # calculate the minimum x and y coordinates
+#     X1, Y1 = max(x_coords), max(y_coords)  # calculate the maximum x and y coordinates
+#     bounding_box = (X0, Y0, X1, Y1)  # create the bounding box tuple
+#
+#     return bounding_box, polygon_points  # return the bounding box and polygon points
 
 
 def points_to_bounding_box_and_mask(points, mask_shape):
@@ -199,18 +422,19 @@ def points_to_bounding_box_and_mask(points, mask_shape):
 
     return bounding_box, segmentation_mask  # return the bounding box and segmentation mask
 
-
-def generate_points_in_BB(bbox, grid_size=5):
+def generate_points_in_BB(bbox, grid_size=5, include_boundary=True, num_boundary_points=4):
     """
-    Generate a grid of points within the bounding box.
+    Generate a grid of points within the bounding box, with an option to include points on the boundary.
 
     Args:
         bbox (tuple or np.ndarray): The bounding box coordinates (x0, y0, x1, y1).
         grid_size (int): The number of points along each dimension.
+        include_boundary (bool): Whether to include points on the boundary.
+        num_boundary_points (int): Number of points to generate along the boundary.
 
     Returns:
-        list or np.ndarray: The grid of points with shape [grid_size*grid_size, 2]. If bbox is an array of shape [N, 4],
-                            returns a list of grids for each bounding box.
+        list or np.ndarray: The grid of points with shape [grid_size*grid_size + num_boundary_points, 2].
+                            If bbox is an array of shape [N, 4], returns a list of grids for each bounding box.
     """
 
     def generate_grid_points(x0, y0, x1, y1, grid_size):
@@ -222,15 +446,34 @@ def generate_points_in_BB(bbox, grid_size=5):
         points = np.array(np.meshgrid(x, y)).T.reshape(-1, 2)  # Generate grid of points
         return points  # Return grid of points
 
+    def generate_boundary_points(x0, y0, x1, y1, num_boundary_points):
+        """
+        Helper function to generate evenly spaced boundary points.
+        """
+        boundary_points = []
+        for x in np.linspace(x0, x1, num_boundary_points // 2):
+            boundary_points.append((x, y0))
+            boundary_points.append((x, y1))
+        for y in np.linspace(y0, y1, num_boundary_points // 2):
+            boundary_points.append((x0, y))
+            boundary_points.append((x1, y))
+        return np.array(boundary_points)
+
     ### Handling Different BBox Formats: ###
     if isinstance(bbox, tuple) or isinstance(bbox, list):  # If bbox is a tuple
         x0, y0, x1, y1 = bbox  # Extract bounding box coordinates
         points = generate_grid_points(x0, y0, x1, y1, grid_size)  # Generate grid points
+        if include_boundary:
+            boundary_points = generate_boundary_points(x0, y0, x1, y1, num_boundary_points)
+            points = np.vstack((points, boundary_points))
         return points  # Return grid of points
 
     elif isinstance(bbox, np.ndarray) and bbox.shape == (4,):  # If bbox is a 1D array of size 4
         x0, y0, x1, y1 = bbox  # Extract bounding box coordinates
         points = generate_grid_points(x0, y0, x1, y1, grid_size)  # Generate grid points
+        if include_boundary:
+            boundary_points = generate_boundary_points(x0, y0, x1, y1, num_boundary_points)
+            points = np.vstack((points, boundary_points))
         return points  # Return grid of points
 
     elif isinstance(bbox, np.ndarray) and bbox.shape[1] == 4:  # If bbox is a 2D array of shape [N, 4]
@@ -239,19 +482,26 @@ def generate_points_in_BB(bbox, grid_size=5):
         for single_bbox in bbox:  # Loop through each bounding box
             x0, y0, x1, y1 = single_bbox  # Extract bounding box coordinates
             points = generate_grid_points(x0, y0, x1, y1, grid_size)  # Generate grid points
+            if include_boundary:
+                boundary_points = generate_boundary_points(x0, y0, x1, y1, num_boundary_points)
+                points = np.vstack((points, boundary_points))
             points_list.append(points)  # Append points to list
         return points_list  # Return list of grids for each bounding box
 
     else:
         raise ValueError("Invalid bbox format. Must be a tuple or an array of shape [N, 4] or [4,].")
 
-def generate_points_in_polygon(polygon, grid_size=5):
+### Generate Points in Polygon with Boundary Option and Custom Number of Boundary Points:
+
+def generate_points_in_polygon(polygon, grid_size=5, include_boundary=True, num_boundary_points=4):
     """
-    Generate a grid of points within a closed polygon.
+    Generate a grid of points within a closed polygon, with an option to include points on the boundary.
 
     Args:
         polygon (list or np.ndarray): The polygon vertices as a list of tuples or an array of shape [N, 2].
         grid_size (int): The number of points along the longer dimension of the bounding box.
+        include_boundary (bool): Whether to include points on the boundary.
+        num_boundary_points (int): Number of points to generate along the boundary.
 
     Returns:
         np.ndarray: The grid of points within the polygon with shape [M, 2], where M is the number of points inside the polygon.
@@ -272,20 +522,31 @@ def generate_points_in_polygon(polygon, grid_size=5):
     inside_mask = path.contains_points(grid_points)  # Check which grid points are inside the polygon
     points_in_polygon = grid_points[inside_mask]  # Select only the points inside the polygon
 
+    if include_boundary:
+        boundary_points = np.array([
+            polygon[int(i * len(polygon) / num_boundary_points)] for i in range(num_boundary_points)
+        ])
+        points_in_polygon = np.vstack((points_in_polygon, boundary_points))
+
     return points_in_polygon  # Return the grid of points within the polygon
 
-def generate_points_in_segmentation_mask(segmentation_mask, grid_size=5):
+### Generate Points in Segmentation Mask with Boundary Option and Custom Number of Boundary Points:
+
+def generate_points_in_segmentation_mask(segmentation_mask, grid_size=5, include_boundary=True,
+                                         num_boundary_points=4):
     """
     This function takes a segmentation mask with one area of 1s and returns:
     1. The minimum containing bounding box in the format (X0, Y0, X1, Y1).
     2. A list of polygon points representing the contour of the mask area.
-    3. A grid of points within the polygon area inside the mask.
+    3. A grid of points within the polygon area inside the mask, with an option to include points on the boundary.
 
     Former function name: N/A
 
     Parameters:
     segmentation_mask (np.ndarray): A binary mask with the shape (height, width), where 1s represent the mask area.
     grid_size (int): The number of points along the longer dimension of the bounding box.
+    include_boundary (bool): Whether to include points on the boundary.
+    num_boundary_points (int): Number of points to generate along the boundary.
 
     Returns:
     bounding_box (tuple): A tuple of four integers (X0, Y0, X1, Y1) representing the bounding box coordinates.
@@ -316,7 +577,8 @@ def generate_points_in_segmentation_mask(segmentation_mask, grid_size=5):
                           (0, height - 1)]  # vertices of the entire image
 
         ### Generate Points within the Bounding Box: ###
-        points_in_polygon = generate_points_in_BB(bounding_box, grid_size)  # generate points within the bounding box
+        points_in_polygon = generate_points_in_BB(bounding_box, grid_size, include_boundary,
+                                                  num_boundary_points)  # generate points within the bounding box
 
         ### Return the Default Values: ###
         return bounding_box, polygon_points, points_in_polygon  # return the default output
@@ -334,34 +596,244 @@ def generate_points_in_segmentation_mask(segmentation_mask, grid_size=5):
     bounding_box = (X0, Y0, X1, Y1)  # create the bounding box tuple
 
     ### Generate Points within the Polygon: ###
-    points_in_polygon = generate_points_in_polygon(polygon_points, grid_size)  # generate points within the polygon
+    points_in_polygon = generate_points_in_polygon(polygon_points, grid_size, include_boundary,
+                                                   num_boundary_points)  # generate points within the polygon
 
     return bounding_box, polygon_points, points_in_polygon  # return the bounding box, polygon points, and points in polygon
 
+# def generate_points_in_BB(bbox, grid_size=5):
+#     """
+#     Generate a grid of points within the bounding box.
+#
+#     Args:
+#         bbox (tuple or np.ndarray): The bounding box coordinates (x0, y0, x1, y1).
+#         grid_size (int): The number of points along each dimension.
+#
+#     Returns:
+#         list or np.ndarray: The grid of points with shape [grid_size*grid_size, 2]. If bbox is an array of shape [N, 4],
+#                             returns a list of grids for each bounding box.
+#     """
+#
+#     def generate_grid_points(x0, y0, x1, y1, grid_size):
+#         """
+#         Helper function to generate grid points within a single bounding box.
+#         """
+#         x = np.linspace(x0, x1, grid_size)  # Generate x-coordinates
+#         y = np.linspace(y0, y1, grid_size)  # Generate y-coordinates
+#         points = np.array(np.meshgrid(x, y)).T.reshape(-1, 2)  # Generate grid of points
+#         return points  # Return grid of points
+#
+#     ### Handling Different BBox Formats: ###
+#     if isinstance(bbox, tuple) or isinstance(bbox, list):  # If bbox is a tuple
+#         x0, y0, x1, y1 = bbox  # Extract bounding box coordinates
+#         points = generate_grid_points(x0, y0, x1, y1, grid_size)  # Generate grid points
+#         return points  # Return grid of points
+#
+#     elif isinstance(bbox, np.ndarray) and bbox.shape == (4,):  # If bbox is a 1D array of size 4
+#         x0, y0, x1, y1 = bbox  # Extract bounding box coordinates
+#         points = generate_grid_points(x0, y0, x1, y1, grid_size)  # Generate grid points
+#         return points  # Return grid of points
+#
+#     elif isinstance(bbox, np.ndarray) and bbox.shape[1] == 4:  # If bbox is a 2D array of shape [N, 4]
+#         points_list = []
+#         ### Looping Over Bounding Boxes: ###
+#         for single_bbox in bbox:  # Loop through each bounding box
+#             x0, y0, x1, y1 = single_bbox  # Extract bounding box coordinates
+#             points = generate_grid_points(x0, y0, x1, y1, grid_size)  # Generate grid points
+#             points_list.append(points)  # Append points to list
+#         return points_list  # Return list of grids for each bounding box
+#
+#     else:
+#         raise ValueError("Invalid bbox format. Must be a tuple or an array of shape [N, 4] or [4,].")
+#
+# def generate_points_in_polygon(polygon, grid_size=5):
+#     """
+#     Generate a grid of points within a closed polygon.
+#
+#     Args:
+#         polygon (list or np.ndarray): The polygon vertices as a list of tuples or an array of shape [N, 2].
+#         grid_size (int): The number of points along the longer dimension of the bounding box.
+#
+#     Returns:
+#         np.ndarray: The grid of points within the polygon with shape [M, 2], where M is the number of points inside the polygon.
+#     """
+#     ### This Is The Code Block: ###
+#     polygon = np.array(polygon)  # Convert polygon to numpy array if it is not already
+#     x_min, y_min = np.min(polygon, axis=0)  # Get the minimum x and y coordinates
+#     x_max, y_max = np.max(polygon, axis=0)  # Get the maximum x and y coordinates
+#
+#     ### Create a grid of points within the bounding box of the polygon ###
+#     x_points = np.linspace(x_min, x_max, grid_size)  # Generate x-coordinates
+#     y_points = np.linspace(y_min, y_max, grid_size)  # Generate y-coordinates
+#     x_grid, y_grid = np.meshgrid(x_points, y_points)  # Create meshgrid of x and y points
+#     grid_points = np.vstack((x_grid.flatten(), y_grid.flatten())).T  # Flatten the grid to a list of points
+#
+#     ### Check which points are inside the polygon ###
+#     path = mpath.Path(polygon)  # Create a path object from the polygon
+#     inside_mask = path.contains_points(grid_points)  # Check which grid points are inside the polygon
+#     points_in_polygon = grid_points[inside_mask]  # Select only the points inside the polygon
+#
+#     return points_in_polygon  # Return the grid of points within the polygon
+#
+# def generate_points_in_segmentation_mask(segmentation_mask, grid_size=5):
+#     """
+#     This function takes a segmentation mask with one area of 1s and returns:
+#     1. The minimum containing bounding box in the format (X0, Y0, X1, Y1).
+#     2. A list of polygon points representing the contour of the mask area.
+#     3. A grid of points within the polygon area inside the mask.
+#
+#     Former function name: N/A
+#
+#     Parameters:
+#     segmentation_mask (np.ndarray): A binary mask with the shape (height, width), where 1s represent the mask area.
+#     grid_size (int): The number of points along the longer dimension of the bounding box.
+#
+#     Returns:
+#     bounding_box (tuple): A tuple of four integers (X0, Y0, X1, Y1) representing the bounding box coordinates.
+#                           X0, Y0 are the coordinates of the top-left corner.
+#                           X1, Y1 are the coordinates of the bottom-right corner.
+#     polygon_points (list): A list of tuples representing the contour points of the mask area.
+#                            Each tuple contains two integers (x, y).
+#     points_in_polygon (np.ndarray): A grid of points within the polygon area inside the mask.
+#                                     Shape is [M, 2], where M is the number of points inside the polygon.
+#     """
+#
+#     ### Find Contours in the Segmentation Mask: ###
+#     contours = find_contours(segmentation_mask, level=0.5)  # find contours at the mask boundaries
+#
+#     ### Check if Contours Were Found: ###
+#     if len(contours) == 0:
+#         ### Return Default Output: ###
+#         height, width = segmentation_mask.shape  # extract height and width of the input mask
+#
+#         ### Define Bounding Box as Entire Frame: ###
+#         bounding_box = (0, 0, width, height)  # set bounding box to cover the entire frame
+#
+#         ### Create Segmentation Mask of All 1s: ###
+#         segmentation_mask = np.ones((height, width), dtype=np.uint8)  # create a mask filled with 1s
+#
+#         ### Define Polygon as Entire Image Vertices: ###
+#         polygon_points = [(0, 0), (width - 1, 0), (width - 1, height - 1),
+#                           (0, height - 1)]  # vertices of the entire image
+#
+#         ### Generate Points within the Bounding Box: ###
+#         points_in_polygon = generate_points_in_BB(bounding_box, grid_size)  # generate points within the bounding box
+#
+#         ### Return the Default Values: ###
+#         return bounding_box, polygon_points, points_in_polygon  # return the default output
+#
+#     ### Extract the Largest Contour: ###
+#     largest_contour = max(contours, key=len)  # select the largest contour by length
+#
+#     ### Convert Contour to Integer Coordinates: ###
+#     polygon_points = [(int(x), int(y)) for y, x in largest_contour]  # convert contour to integer coordinates
+#
+#     ### Calculate Bounding Box: ###
+#     x_coords, y_coords = zip(*polygon_points)  # unzip the polygon points into x and y coordinates
+#     X0, Y0 = min(x_coords), min(y_coords)  # calculate the minimum x and y coordinates
+#     X1, Y1 = max(x_coords), max(y_coords)  # calculate the maximum x and y coordinates
+#     bounding_box = (X0, Y0, X1, Y1)  # create the bounding box tuple
+#
+#     ### Generate Points within the Polygon: ###
+#     points_in_polygon = generate_points_in_polygon(polygon_points, grid_size)  # generate points within the polygon
+#
+#     return bounding_box, polygon_points, points_in_polygon  # return the bounding box, polygon points, and points in polygon
 
-def user_input_to_all_input_types(user_input, input_method='BB', input_shape=None):
-    H, W = input_shape  # unpack input shape
-    if user_input is not None:
-        if input_method == 'BB':
-            BB_XYXY = user_input
-            polygon_points, segmentation_mask = bounding_box_to_polygon_and_mask(BB_XYXY, (H, W))
-            grid_points = generate_points_in_BB(BB_XYXY, grid_size=5)
-        elif input_method == 'polygon':
-            polygon_points = user_input
-            BB_XYXY, segmentation_mask = polygon_to_bounding_box_and_mask(polygon_points, (H, W))
-            grid_points = generate_points_in_polygon(polygon_points, grid_size=5)
-        elif input_method == 'segmentation':
-            segmentation_mask = user_input
-            BB_XYXY, polygon_points = mask_to_bounding_box_and_polygon(segmentation_mask)
-            grid_points = generate_points_in_segmentation_mask(segmentation_mask, grid_size=5)
-        flag_no_input = False
-    else:
-        BB_XYXY = [0, 0, W, H]  # default bounding box is full frame
-        segmentation_mask = np.ones((H, W), dtype=np.uint8)
-        polygon_points = [(0, 0), (W, 0), (W, H), (0, H)]  # default polygon is full frame
-        grid_points = generate_points_in_BB(BB_XYXY, grid_size=5)  # default grid points are evenly spaced in the bounding box
-        flag_no_input = True
-    return BB_XYXY, polygon_points, segmentation_mask, grid_points, flag_no_input
+
+def user_input_to_all_input_types(user_input, input_method='BB_XYXY', input_shape=None):
+    """
+    Convert user input to all input types (bounding box, polygon, segmentation mask, and grid points).
+
+    Args:
+        user_input (various): User input which can be a bounding box, polygon, or segmentation mask.
+                              Can be a single input or a list of inputs.
+        input_method (str, optional): Method to determine the type of user input
+                                      ('BB_XYXY', 'BB_XYWH', 'polygon', 'segmentation',
+                                       'BB_XYXY_multiple', 'BB_XYWH_multiple', 'polygon_multiple', 'segmentation_multiple').
+                                      If None, the entire frame is used as output.
+        input_shape (tuple, optional): Shape of the input (H, W).
+
+    Returns:
+        BB_XYXY (list): Bounding box coordinates.
+        polygon_points (list): List of polygon points.
+        segmentation_mask (np.ndarray): Segmentation mask.
+        grid_points (list): Grid points generated within the input region.
+        flag_no_input (bool): Flag to indicate if there was no input.
+        flag_list (bool): Flag to indicate if the input was a list.
+    """
+
+    ### Unpack Input Shape: ###
+    H, W = input_shape  # Unpack input shape (H, W)
+
+    ### Function to Process Single Input: ###
+    def process_single_input(single_input, input_method=None):
+        """
+        Process a single input based on the input method.
+
+        Args:
+            single_input (various): Single user input.
+
+        Returns:
+            BB_XYXY (list): Bounding box coordinates.
+            polygon_points (list): List of polygon points.
+            segmentation_mask (np.ndarray): Segmentation mask.
+            grid_points (list): Grid points generated within the input region.
+        """
+        if input_method == 'BB_XYXY':  # Check if input method is 'BB_XYXY'
+            BB_XYXY = single_input  # Bounding box is the single input
+            polygon_points, segmentation_mask = bounding_box_to_polygon_and_mask(BB_XYXY, (H, W))  # Convert to polygon and mask
+            grid_points = generate_points_in_BB(BB_XYXY, grid_size=5)  # Generate grid points
+        elif input_method == 'BB_XYWH':  # Check if input method is 'BB_XYWH'
+            BB_XYXY = BB_convert_notation_XYWH_to_XYXY(single_input)  # Convert BB_XYWH to BB_XYXY
+            polygon_points, segmentation_mask = bounding_box_to_polygon_and_mask(BB_XYXY, (H, W))  # Convert to polygon and mask
+            grid_points = generate_points_in_BB(BB_XYXY, grid_size=5)  # Generate grid points
+        elif input_method == 'polygon':  # Check if input method is 'polygon'
+            polygon_points = single_input  # Polygon points are the single input
+            BB_XYXY, segmentation_mask = polygon_to_bounding_box_and_mask(polygon_points, (H, W))  # Convert to bounding box and mask
+            grid_points = generate_points_in_polygon(polygon_points, grid_size=5)  # Generate grid points
+        elif input_method == 'segmentation':  # Check if input method is 'segmentation'
+            segmentation_mask = single_input  # Segmentation mask is the single input
+            BB_XYXY, polygon_points = mask_to_bounding_box_and_polygon(segmentation_mask)  # Convert to bounding box and polygon
+            _, _, grid_points = generate_points_in_segmentation_mask(segmentation_mask, grid_size=5)  # Generate grid points
+        return BB_XYXY, polygon_points, segmentation_mask, grid_points  # Return all converted types
+
+    ### Validate Input Method: ###
+    valid_input_methods = ['BB_XYXY', 'BB_XYWH', 'polygon', 'segmentation', 'BB_XYXY_multiple', 'BB_XYWH_multiple', 'polygon_multiple', 'segmentation_multiple']
+    if input_method is not None and input_method not in valid_input_methods:  # Check if input_method is valid
+        raise ValueError(f"Invalid input_method: {input_method}. Must be one of {valid_input_methods} or None.")  # Raise error if invalid
+
+    ### Handle Cases Where input_method or user_input is None: ###
+    if input_method is None or user_input is None:  # Check if input_method or user_input is None
+        BB_XYXY = [0, 0, W, H]  # Default bounding box is full frame
+        segmentation_mask = np.ones((H, W), dtype=np.uint8)  # Default segmentation mask is full frame
+        polygon_points = [(0, 0), (W, 0), (W, H), (0, H)]  # Default polygon is full frame
+        grid_points = generate_points_in_BB(BB_XYXY, grid_size=5)  # Default grid points are evenly spaced in the bounding box
+        flag_no_input = True  # Set flag_no_input to True
+        flag_list = False  # Set flag_list to False
+
+    ### Process Single Input Cases: ###
+    elif input_method in ['BB_XYXY', 'BB_XYWH', 'polygon', 'segmentation']:  # Check if input_method is for single input
+        flag_list = False  # Set flag_list to False
+        BB_XYXY, polygon_points, segmentation_mask, grid_points = process_single_input(user_input, input_method)  # Process single input
+        flag_no_input = False  # Set flag_no_input to False
+
+    ### Handle Multiple Input Cases: ###
+    elif input_method in ['BB_XYXY_multiple', 'BB_XYWH_multiple', 'polygon_multiple', 'segmentation_multiple']:  # Check if input_method is for multiple inputs
+        if not isinstance(user_input, list):  # Check if user_input is not a list
+            raise ValueError("user_input must be a list for input_method BB_XYXY_multiple, BB_XYWH_multiple, polygon_multiple, or segmentation_multiple.")  # Raise error if not list
+        flag_list = True  # Set flag_list to True
+        ### Loop Over User Input: ###
+        input_method_single = str.split(input_method, '_multiple')[0]
+        results = [process_single_input(ui, input_method_single) for ui in user_input]  # Process each input in the list
+        BB_XYXY, polygon_points, segmentation_mask, grid_points = zip(*results)  # Unzip results into separate lists
+        BB_XYXY = list(BB_XYXY)  # Convert BB_XYXY to list
+        polygon_points = list(polygon_points)  # Convert polygon_points to list
+        segmentation_mask = list(segmentation_mask)  # Convert segmentation_mask to list
+        grid_points = list(grid_points)  # Convert grid_points to list
+        flag_no_input = [False] * len(user_input)  # Set flag_no_input to False for all inputs
+
+    ### Return All Converted Types: ###
+    return BB_XYXY, polygon_points, segmentation_mask, grid_points, flag_no_input, flag_list  # Return all outputs
 
 def torch_get_4D(input_tensor, input_dims=None, flag_stack_BT=False):
     #[T,C,H,W]

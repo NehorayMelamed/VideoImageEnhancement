@@ -16,6 +16,7 @@ CHECKPOINTS = os.path.join(BASE_PROJECT, "checkpoints")
 
 DEVICE = 'cuda'
 
+
 ### denoise
 
 # path_restore_ckpt_denoise_flow_former = os.path.join(RDND_BASE_PATH, "models", "FlowFormer", "check_points", "sintel.pth")
@@ -37,7 +38,7 @@ base_dir_ben_code = os.path.join(BASE_PROJECT, "ben_deblur", "ImageDeBlur")
 
 ### checkpoints
 Base_dir_NAFNet = os.path.join(CHECKPOINTS, "BenDeblur")
-NEFNet_width64 = os.path.join(Base_dir_NAFNet, "NAFNet-width64.py")
+NEFNet_width64 = os.path.join(Base_dir_NAFNet, "NAFNet_width64.py")
 NEFNet_model_path = os.path.join(Base_dir_NAFNet, "models","NAFNet-REDS-width64.pth")
 
 #### Model_New_Checkpoints
@@ -61,9 +62,31 @@ grounding_dino_checkpoint = os.path.join(CHECKPOINTS, "grounding_dino", "groundi
 grounding_dino_config_SwinT_OGC = os.path.join(CHECKPOINTS, "grounding_dino", "config", "GroundingDINO_SwinT_OGC.py")
 
 
+ImageRestoration_base_dir = os.path.join(BASE_PROJECT, "ImageRestoration")
+FMA_Net_model_path_D = os.path.join(CHECKPOINTS, "FMA_Net", "model_D_best.pt")
+FMA_Net_model_path_R = os.path.join(CHECKPOINTS, "FMA_Net", "model_R_best.pt")
+
+#C\LakDNet\
+LakDNet_base_checkpoint = os.path.join(CHECKPOINTS, "LakDNet")
+
+#C:\Users\orior\PycharmProjects\VideoImageEnhancement\checkpoints\UFPDeblur\train_on_GoPro\net_g_latest.pth
+
+UFPD_train_go_pro = os.path.join(CHECKPOINTS, "UFPDeblur", "train_on_GoPro", "net_g_latest.pth")
+
+
+
+### SAM2
+SAM_PROJECT = os.path.join(BASE_PROJECT, "Segmentation", "SAM2")
+#models
+SAN_2_MODEL_HIERA_BASE_PLUS = os.path.join(SAM_PROJECT, "checkpoints", "sam2_hiera_base_plus.pt")
+SAN_2_MODEL_HIERA_LARGE = os.path.join(SAM_PROJECT, "checkpoints", "sam2_hiera_large.pt")
+#configs
+SAN_2_CONFIG_HIERA_LARGE = os.path.join(SAM_PROJECT, "sam2_configs", "sam2_hiera_l.yaml")
+
+
 class InputMethodForServices:
     segmentation    = "segmentation"
-    BB              = "BB"
+    BB              = "BB_XYWH"
     polygon         = "polygon"
 
 
@@ -72,6 +95,7 @@ class DictInput:
     reference_frame: np.ndarray = "reference_frame" # (np.ndarray, optional): Reference frame to align against.
     input_method: InputMethodForServices = "input_method"
     user_input: dict = "user_input"
+    params: dict = "params"
 
-class DictOutput:
-    frames: list[np.ndarray] = "frames"
+# class DictOutput:
+#     frames: list[np.ndarray] = "frames"
