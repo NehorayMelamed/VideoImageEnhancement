@@ -41,8 +41,8 @@ def get_bounding_boxes(image_path, model_path, classes, display_image=False):
 if __name__ == '__main__':
 
     # Example usage:
-    image_path = "C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/img.png"
-    model_path = "C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/yolov8x-worldv2.pt"
+    image_path = r"C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\Shaback\litle_amount_of_images\00057770.png"
+    model_path = PARAMETER.yolo_world_checkpoint
     classes = ["person", "car", "license-plate"]
     display_image = True
 
