@@ -41,15 +41,9 @@ def main(video_path=None, tracker_type="kcf"):
     tracker = initialize_tracker(tracker_type)
     tracker.init(frame, initBB)
 
-    # Initialize the FPS counter
-    fps = None
-
-    # Loop over frames from the video stream
     while True:
         # Grab the current frame
         ret, frame = vs.read()
-
-        # Check to see if we have reached the end of the stream
         if frame is None:
             break
 
@@ -95,5 +89,4 @@ def main(video_path=None, tracker_type="kcf"):
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    # Example usage
     main(video_path=r"C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\videos\DATA\video_example_for_car_detection_1.mp4", tracker_type="mil")
