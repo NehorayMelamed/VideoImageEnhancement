@@ -80,12 +80,12 @@ def inference_realbasicvsr(config, checkpoint, input_dir, output_dir, max_seq_le
                 imgs = inputs[:, i:i + max_seq_len, :, :, :]
                 if cuda_flag:
                     imgs = imgs.cuda()
-                outputs.append(model(imgs, test_mode=True)['output'].cpu())
+                outputs.append(model(imgs, test_mode=True)['output'])
             outputs = torch.cat(outputs, dim=1)
         else:
             if cuda_flag:
                 inputs = inputs.cuda()
-            outputs = model(inputs, test_mode=True)['output'].cpu()
+            outputs = model(inputs, test_mode=True)['output']
 
     if os.path.splitext(output_dir)[1] in VIDEO_EXTENSIONS:
         output_dir = os.path.dirname(output_dir)
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     checkpoint_path = "../checkpoints/RealBasicVSR/models/RealBasicVSR_x4.pth"
 
 
-    input_video = "/home/nehoray/PycharmProjects/VideoImageEnhancement/data/videos/scene_0_resized.mp4"
+    input_video = r"C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\videos\scene_0_resized_short_compressed.mp4"
     output_video = "output_video.mp4"
     video_fps = int(get_video_fps(input_video))
 
@@ -126,6 +126,6 @@ if __name__ == '__main__':
 
 
 
-    input_dir = '/home/nehoray/PycharmProjects/VideoImageEnhancement/data/dgx_data/blur_cars/litle_amount_of_images_resized_crop'
+    input_dir = r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\Shaback\litle_amount_of_images_resized_crop'
     output_dir = 'output'
     inference_realbasicvsr(config_path, checkpoint_path,input_dir, output_dir)
