@@ -5,7 +5,7 @@ import KAIR_light.models.network_vrt
 import KAIR_light.models.network_vrt_new
 from models.FastDVDNet.models import FastDVDnet_dudy, FastDVDnet_6f
 from models.FastDVDNet.dvdnet_pnp import FastDVDnet, pytorch_fastdvdnet_video_denoiser
-from RVRT.models.network_rvrt import RVRT
+from RVRT_old.models.network_rvrt import RVRT
 
 # model = RVRT(upscale=1, clip_size=2, img_size=[2, 64, 64], window_size=[2, 8, 8], num_blocks=[1, 2, 1],
 #                     depths=[2, 2, 2], embed_dims=[192, 192, 192], num_heads=[6, 6, 6],

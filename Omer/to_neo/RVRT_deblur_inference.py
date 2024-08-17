@@ -6,8 +6,8 @@ import torch
 
 from PARAMETER import RVRT_deblur_shoval_train_py_blur20_TEST1_Step60000
 # from RapidBase.import_all import *
+# from RVRT_old.models.rvrt_models import RVRT_deblur_16_frames  #TODO: dudy commented this out to check
 from RVRT.models.rvrt_models import RVRT_deblur_16_frames
-
 
 class Deblur:
     def __init__(self, input_torch_video,

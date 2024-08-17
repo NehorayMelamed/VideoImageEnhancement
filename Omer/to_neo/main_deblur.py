@@ -9,10 +9,15 @@ import torch
 
 
 
+# import os
+# os.environ['TORCH_CUDA_ARCH_LIST'] = '8.9'
+
+
+
 import PARAMETER
 from RVRT_deblur_inference import Deblur
 from RapidBase.Utils.IO.imshow_torch_local import torch_to_numpy
-from Utils import list_to_numpy
+from Utils import list_to_numpy, numpy_to_list
 # from RapidBase.Utils.Tensor_Manipulation.Array_Tensor_Manipulation import numpy_unsqueeze, BW2RGB, scale_array_to_range
 # from RapidBase.import_all import *
 from util.crop_image_using_mouse import ImageCropper
@@ -20,6 +25,132 @@ from util.save_video_as_mp4 import save_video_as_mp4
 DEVICE = 0
 
 ###### Rapid base
+
+def frames_to_constant_format(frames, dtype_requested='uint8', range_requested=[0, 255], channels_requested=3, threshold=5):
+    """
+    Process a list of frames to match the requested dtype, range, and number of channels.
+
+    Args:
+        frames (list of np.ndarray): List of input frames (numpy arrays).
+        dtype_requested (str, optional): Requested data type ('uint8' or 'float'). Default is 'uint8'.
+        range_requested (list, optional): Requested range ([0, 255] or [0, 1]). Default is [0, 255].
+        channels_requested (int, optional): Requested number of channels (1 or 3). Default is 3.
+        threshold (int, optional): Threshold for determining the input range. Default is 5.
+
+    Returns:
+        list of np.ndarray: List of processed frames matching the requested dtype, range, and number of channels.
+
+    This function performs the following steps:
+        1. Analyzes the first frame to determine the original number of channels, dtype, and range.
+        2. Converts each frame to the requested number of channels using RGB2BW or BW2RGB if needed.
+        3. Converts each frame to the requested range ([0, 255] or [0, 1]).
+        4. Converts each frame to the requested dtype ('uint8' or 'float').
+    """
+
+    ### Analyze First Frame: ###
+    first_frame = frames[0]  # Get the first frame for analysis
+    original_dtype = first_frame.dtype  # Determine the original dtype of the first frame
+    original_channels = first_frame.shape[2] if len(first_frame.shape) == 3 else 1  # Determine the original number of channels
+
+    if original_dtype == np.uint8:  # Check if the original dtype is uint8
+        original_range = [0, 255]  # Set original range to [0, 255]
+    else:
+        max_val = np.max(first_frame)  # Get the maximum value of the first frame
+        original_range = [0, 255] if max_val > threshold else [0, 1]  # Determine the original range based on max value and threshold
+
+    processed_frames = []  # Initialize list to store processed frames
+
+    ### Process Each Frame: ###
+    for frame in frames:  # Loop through each frame in the list
+
+        ### Convert Number of Channels if Needed: ###
+        if original_channels != channels_requested:  # Check if channel conversion is needed
+            if channels_requested == 1:
+                frame = RGB2BW(frame)  # Convert to grayscale
+            else:
+                frame = BW2RGB(frame)  # Convert to RGB
+
+        ### Convert Range if Needed: ###
+        if original_range != range_requested:  # Check if range conversion is needed
+            if original_range == [0, 255] and range_requested == [0, 1]:
+                frame = frame / 255.0  # Convert range from [0, 255] to [0, 1]
+            elif original_range == [0, 1] and range_requested == [0, 255]:
+                frame = frame * 255.0  # Convert range from [0, 1] to [0, 255]
+
+        ### Convert Dtype if Needed: ###
+        if original_dtype != dtype_requested:  # Check if dtype conversion is needed
+            frame = frame.astype(dtype_requested)  # Convert dtype
+
+        processed_frames.append(frame)  # Add the processed frame to the list
+
+    return processed_frames  # Return the list of processed frames
+
+def RGB2BW(input_image):
+    if len(input_image.shape) == 2:
+        return input_image
+
+    if len(input_image.shape) == 3:
+        if type(input_image) == torch.Tensor and input_image.shape[0] == 3:
+            grayscale_image = 0.299 * input_image[0:1, :, :] + 0.587 * input_image[1:2, :, :] + 0.114 * input_image[2:3, :, :]
+        elif type(input_image) == np.ndarray and input_image.shape[-1] == 3:
+            grayscale_image = 0.299 * input_image[:, :, 0:1] + 0.587 * input_image[:, :, 1:2] + 0.114 * input_image[:, :, 2:3]
+        else:
+            grayscale_image = input_image
+
+    elif len(input_image.shape) == 4:
+        if type(input_image) == torch.Tensor and input_image.shape[1] == 3:
+            grayscale_image = 0.299 * input_image[:, 0:1, :, :] + 0.587 * input_image[:, 1:2, :, :] + 0.114 * input_image[:, 2:3, :, :]
+        elif type(input_image) == np.ndarray and input_image.shape[-1] == 3:
+            grayscale_image = 0.299 * input_image[:, :, :, 0:1] + 0.587 * input_image[:, :, :, 1:2] + 0.114 * input_image[:, :, :, 2:3]
+        else:
+            grayscale_image = input_image
+
+    elif len(input_image.shape) == 5:
+        if type(input_image) == torch.Tensor and input_image.shape[2] == 3:
+            grayscale_image = 0.299 * input_image[:, :, 0:1, :, :] + 0.587 * input_image[:, :, 1:2, :, :] + 0.114 * input_image[:, :, 2:3, :, :]
+        elif type(input_image) == np.ndarray and input_image.shape[-1] == 3:
+            grayscale_image = 0.299 * input_image[:, :, :, :, 0:1] + 0.587 * input_image[:, :, :, :, 1:2] + 0.114 * input_image[:, :, :, :, 2:3]
+        else:
+            grayscale_image = input_image
+
+    return grayscale_image
+
+def BW2RGB(input_image):
+    ### For Both Torch Tensors and Numpy Arrays!: ###
+    # Actually... we're not restricted to RGB....
+    if len(input_image.shape) == 2:
+        if type(input_image) == torch.Tensor:
+            RGB_image = input_image.unsqueeze(0)
+            RGB_image = torch.cat([RGB_image,RGB_image,RGB_image], 0)
+        elif type(input_image) == np.ndarray:
+            RGB_image = np.atleast_3d(input_image)
+            RGB_image = np.concatenate([RGB_image, RGB_image, RGB_image], -1)
+        return RGB_image
+
+    if len(input_image.shape) == 3:
+        if type(input_image) == torch.Tensor and input_image.shape[0] == 1:
+            RGB_image = torch.cat([input_image, input_image, input_image], 0)
+        elif type(input_image) == np.ndarray and input_image.shape[-1] == 1:
+            RGB_image = np.concatenate([input_image, input_image, input_image], -1)
+        else:
+            RGB_image = input_image
+
+    elif len(input_image.shape) == 4:
+        if type(input_image) == torch.Tensor and input_image.shape[1] == 1:
+            RGB_image = torch.cat([input_image, input_image, input_image], 1)
+        elif type(input_image) == np.ndarray and input_image.shape[-1] == 1:
+            RGB_image = np.concatenate([input_image, input_image, input_image], -1)
+        else:
+            RGB_image = input_image
+
+    elif len(input_image.shape) == 5:
+        if type(input_image) == torch.Tensor and input_image.shape[2] == 1:
+            RGB_image = torch.cat([input_image, input_image, input_image], 2)
+        else:
+            RGB_image = input_image
+
+    return RGB_image
+
 
 def scale_array_to_range(input_tensor, min_max_values_to_scale_to=(0,1)):
     input_tensor_normalized = (input_tensor - input_tensor.min()) / (input_tensor.max()-input_tensor.min() + 1e-16) * (min_max_values_to_scale_to[1]-min_max_values_to_scale_to[0]) + min_max_values_to_scale_to[0]
@@ -274,16 +405,19 @@ def main_deblur_list_of_frames(list_of_numpy_frames, use_roi=False, start_read_f
         video_torch_array_to_video(input_torch_vid, video_name=blur_video_mp4)
         video_torch_array_to_video(output_torch_vid, video_name=deblur_video_mp4)
 
-
     return torch_to_numpy(output_torch_vid)
 
 
-
+def main_deblur_dict(input_dict):
+    list_of_numpy_frames = input_dict[PARAMETER.AlignClassDictInput.frames]
+    numpy_result = main_deblur_list_of_frames(list_of_numpy_frames=list_of_numpy_frames)
+    list_of_numpy_result = numpy_to_list(numpy_result)
+    return list_of_numpy_result
 
 if __name__ == '__main__':
     print(1)
     # main_deblur(video_path=video_path, use_roi=False, save_videos=True)
-    video_path = "/home/nehoray/PycharmProjects/VideoImageEnhancement/data/videos/scene_0_resized.mp4"
+    video_path = r"C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\videos\Car_Going_Down\scene_0_resized_short_compressed.mp4"
     frames = get_video_frames(video_path)
     main_deblur_list_of_frames(frames)
 
