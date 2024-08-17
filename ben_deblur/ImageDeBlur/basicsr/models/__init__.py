@@ -1,13 +1,14 @@
 # ------------------------------------------------------------------------
 # Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
-# Modified from BasicSR (https://github.com/xinntao/BasicSR)
+# Modified from ben_deblur.ImageDeBlur.basicsr (https://github.com/xinntao/BasicSR)
 # Copyright 2018-2020 BasicSR Authors
 # ------------------------------------------------------------------------
 import importlib
+import sys
 from os import path as osp
 
-from basicsr.utils import get_root_logger, scandir
+from ben_deblur.ImageDeBlur.basicsr.utils import get_root_logger, scandir
 
 # automatically scan and import model modules
 # scan all the files under the 'models' folder and collect files ending with
@@ -19,7 +20,7 @@ model_filenames = [
 ]
 # import all the model modules
 _model_modules = [
-    importlib.import_module(f'basicsr.models.{file_name}')
+    importlib.import_module(f'ben_deblur.ImageDeBlur.basicsr.models.{file_name}')
     for file_name in model_filenames
 ]
 

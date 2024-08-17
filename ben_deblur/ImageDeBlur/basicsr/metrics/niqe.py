@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------
 # Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
-# Modified from BasicSR (https://github.com/xinntao/BasicSR)
+# Modified from ben_deblur.ImageDeBlur.basicsr (https://github.com/xinntao/BasicSR)
 # Copyright 2018-2020 BasicSR Authors
 # ------------------------------------------------------------------------
 import cv2
@@ -10,7 +10,7 @@ import numpy as np
 from scipy.ndimage.filters import convolve
 from scipy.special import gamma
 
-from basicsr.metrics.metric_util import reorder_image, to_y_channel
+from ben_deblur.ImageDeBlur.basicsr.metrics.metric_util import reorder_image, to_y_channel
 
 
 def estimate_aggd_param(block):

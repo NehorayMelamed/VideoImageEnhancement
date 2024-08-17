@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------
 # Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
-# Modified from BasicSR (https://github.com/xinntao/BasicSR)
+# Modified from ben_deblur.ImageDeBlur.basicsr (https://github.com/xinntao/BasicSR)
 # Copyright 2018-2020 BasicSR Authors
 # ------------------------------------------------------------------------
 import importlib
@@ -12,13 +12,13 @@ from copy import deepcopy
 from os import path as osp
 from tqdm import tqdm
 
-from basicsr.models.archs import define_network
-from basicsr.models.base_model import BaseModel
-from basicsr.utils import get_root_logger, imwrite, tensor2img
-from basicsr.utils.dist_util import get_dist_info
+from ben_deblur.ImageDeBlur.basicsr.models.archs import define_network
+from ben_deblur.ImageDeBlur.basicsr.models.base_model import BaseModel
+from ben_deblur.ImageDeBlur.basicsr.utils import get_root_logger, imwrite, tensor2img
+from ben_deblur.ImageDeBlur.basicsr.utils.dist_util import get_dist_info
 
-loss_module = importlib.import_module('basicsr.models.losses')
-metric_module = importlib.import_module('basicsr.metrics')
+loss_module = importlib.import_module('ben_deblur.ImageDeBlur.basicsr.models.losses')
+metric_module = importlib.import_module('ben_deblur.ImageDeBlur.basicsr.metrics')
 
 class ImageRestorationModel(BaseModel):
     """Base Deblur model for single image deblur."""

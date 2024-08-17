@@ -1,13 +1,13 @@
 # ------------------------------------------------------------------------
 # Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
-# Modified from BasicSR (https://github.com/xinntao/BasicSR)
+# Modified from ben_deblur.ImageDeBlur.basicsr (https://github.com/xinntao/BasicSR)
 # Copyright 2018-2020 BasicSR Authors
 # ------------------------------------------------------------------------
 import importlib
 from os import path as osp
 
-from basicsr.utils import scandir
+from ben_deblur.ImageDeBlur.basicsr.utils import scandir
 
 # automatically scan and import arch modules
 # scan all the files under the 'archs' folder and collect files ending with
@@ -19,7 +19,7 @@ arch_filenames = [
 ]
 # import all the arch modules
 _arch_modules = [
-    importlib.import_module(f'basicsr.models.archs.{file_name}')
+    importlib.import_module(f'ben_deblur.ImageDeBlur.basicsr.models.archs.{file_name}')
     for file_name in arch_filenames
 ]
 

@@ -3,13 +3,13 @@
 # ------------------------------------------------------------------------
 # modified from https://github.com/mayorx/matlab_ssim_pytorch_implementation/blob/main/calc_ssim.py
 # ------------------------------------------------------------------------
-# Modified from BasicSR (https://github.com/xinntao/BasicSR)
+# Modified from ben_deblur.ImageDeBlur.basicsr (https://github.com/xinntao/BasicSR)
 # Copyright 2018-2020 BasicSR Authors
 # ------------------------------------------------------------------------
 import cv2
 import numpy as np
 
-from basicsr.metrics.metric_util import reorder_image, to_y_channel
+from ben_deblur.ImageDeBlur.basicsr.metrics.metric_util import reorder_image, to_y_channel
 from skimage.metrics import structural_similarity
 import torch
 

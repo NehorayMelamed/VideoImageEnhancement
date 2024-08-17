@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------
 # Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
-# Modified from BasicSR (https://github.com/xinntao/BasicSR)
+# Modified from ben_deblur.ImageDeBlur.basicsr (https://github.com/xinntao/BasicSR)
 # Copyright 2018-2020 BasicSR Authors
 # ------------------------------------------------------------------------
 import cv2
@@ -10,7 +10,7 @@ import os
 import torch
 from skimage import transform as trans
 
-from basicsr.utils import imwrite
+from ben_deblur.ImageDeBlur.basicsr.utils import imwrite
 
 try:
     import dlib

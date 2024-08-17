@@ -3,8 +3,8 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 import threading
 import torch
-from basicsr.models import create_model
-from basicsr.utils.options import parse
+from ben_deblur.ImageDeBlur.basicsr.models import create_model
+from ben_deblur.ImageDeBlur.basicsr.utils.options import parse
 from deblur_functions import process_video, create_model
 
 DEFAULT_BATCH_SIZE = 32

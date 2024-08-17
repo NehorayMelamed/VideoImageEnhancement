@@ -1,14 +1,14 @@
 # ------------------------------------------------------------------------
 # Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
-# Modified from BasicSR (https://github.com/xinntao/BasicSR)
+# Modified from ben_deblur.ImageDeBlur.basicsr (https://github.com/xinntao/BasicSR)
 # Copyright 2018-2020 BasicSR Authors
 # ------------------------------------------------------------------------
 import argparse
 from os import path as osp
 
-from basicsr.utils import scandir
-from basicsr.utils.lmdb_util import make_lmdb_from_imgs
+from ben_deblur.ImageDeBlur.basicsr.utils import scandir
+from ben_deblur.ImageDeBlur.basicsr.utils.lmdb_util import make_lmdb_from_imgs
 
 def prepare_keys(folder_path, suffix='png'):
     """Prepare image path list and keys for DIV2K dataset.

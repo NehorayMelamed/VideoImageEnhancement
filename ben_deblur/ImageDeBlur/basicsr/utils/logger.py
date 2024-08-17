@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------
 # Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
-# Modified from BasicSR (https://github.com/xinntao/BasicSR)
+# Modified from ben_deblur.ImageDeBlur.basicsr (https://github.com/xinntao/BasicSR)
 # Copyright 2018-2020 BasicSR Authors
 # ------------------------------------------------------------------------
 import datetime
@@ -171,7 +171,7 @@ def get_env_info():
     import torch
     import torchvision
 
-    from basicsr.version import __version__
+    from ben_deblur.ImageDeBlur.basicsr.version import __version__
     msg = r"""
                 ____                _       _____  ____
                / __ ) ____ _ _____ (_)_____/ ___/ / __ \

@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------
 # Copyright (c) 2022 megvii-model. All Rights Reserved.
 # ------------------------------------------------------------------------
-# Modified from BasicSR (https://github.com/xinntao/BasicSR)
+# Modified from ben_deblur.ImageDeBlur.basicsr (https://github.com/xinntao/BasicSR)
 # Copyright 2018-2020 BasicSR Authors
 # ------------------------------------------------------------------------
 import logging
@@ -11,8 +11,8 @@ from collections import OrderedDict
 from copy import deepcopy
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
-from basicsr.models import lr_scheduler as lr_scheduler
-from basicsr.utils.dist_util import master_only
+from ben_deblur.ImageDeBlur.basicsr.models import lr_scheduler as lr_scheduler
+from ben_deblur.ImageDeBlur.basicsr.utils.dist_util import master_only
 
 logger = logging.getLogger('basicsr')
 

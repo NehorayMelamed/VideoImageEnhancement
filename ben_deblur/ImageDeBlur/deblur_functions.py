@@ -1,33 +1,38 @@
 import torch
 import sys
 import PARAMETER
-sys.path.append(f"{PARAMETER.BASE_PROJECT}/ben_deblur/ImageDeBlur")
 
-from basicsr.models import create_model
-from basicsr.utils import img2tensor as _img2tensor, tensor2img, imwrite
-from basicsr.utils.options import parse
+from ben_deblur.ImageDeBlur.basicsr.models import create_model
+from ben_deblur.ImageDeBlur.basicsr.utils import img2tensor as _img2tensor, tensor2img, imwrite
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
-import os
 import time
-import sys
+import os
 
+from checkpoints.BenDeblur.NAFNet_width64 import nafnet_config as nafnet_config
 
+# Ensure the BASE_PROJECT is correctly added to the path for imports
+# sys.path.append(f"{PARAMETER.BASE_PROJECT}/ben_deblur/ImageDeBlur")
 
+class Config:
+    def __init__(self, config_dict):
+        for key, value in config_dict.items():
+            if isinstance(value, dict):
+                value = Config(value)
+            setattr(self, key, value)
+        self._config_dict = config_dict  # Store the original dictionary
 
-
+    def __getitem__(self, item):
+        return self._config_dict[item]
 
 def imread(img_path):
     img = cv2.imread(img_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
 
-
 def img2tensor(img, bgr2rgb=False, float32=True):
     img = img.astype(np.float32) / 255.
     return _img2tensor(img, bgr2rgb=bgr2rgb, float32=float32)
-
 
 def process_images(model, images_tensor):
     model.feed_data(data={'lq': images_tensor})
@@ -39,8 +44,6 @@ def process_images(model, images_tensor):
         final_img = cv2.cvtColor(out_img, cv2.COLOR_BGR2RGB)
         out_imgs.append(final_img)
     return out_imgs
-
-
 
 def process_video(model, video_path, output_folder, batch_size, progress_callback=None):
     cap = cv2.VideoCapture(video_path)
@@ -121,17 +124,6 @@ def process_video(model, video_path, output_folder, batch_size, progress_callbac
 
     return all_processed_frames, output_path
 
-# Example usage:
-# processed_frames, output_path = process_video(model, "input_video.mp4", "output_folder", batch_size=4)
-# print(f"Processed video saved at: {output_path}")
-
-
-
-
-
-
-
-
 def img2tensor2(img, bgr2rgb=False, float32=True):
     img = img.astype(np.float32) / 255.
     return torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0)  # (C, H, W) and add batch dimension
@@ -202,52 +194,53 @@ def process_list_of_frames(model, frame_list, batch_size, progress_callback=None
 
     return all_processed_frames
 
-
-
 def main_nafnet_list_of_frames(frame_list):
-    opt_path = PARAMETER.NEFNet_width64
-
-    opt = parse(opt_path, is_train=False)
+    opt = nafnet_config
     opt['dist'] = False
-    model = create_model(opt)
+    model = create_model(Config(opt))
 
     return process_list_of_frames(model=model,
-                         frame_list=frame_list,
-                         batch_size=1)
+                                  frame_list=frame_list,
+                                  batch_size=1)
 
 
-# Example usage:
-# processed_frames = process_list_of_frames(model, list_of_frames, batch_size=4)
-# print("Processed frames returned.")
-
-# Example usage:
-# processed_frames = process_list_of_frames(model, list_of_frames, batch_size=4)
-# print("Processed frames returned.")
-
+def main_nafnet_list_of_frames_dict(input_dict: dict):
+    frame_list = input_dict[PARAMETER.AlignClassDictInput.frames]
+    return main_nafnet_list_of_frames(frame_list)
 
 
 def main_nafnet_deblur(video_path, output_folder):
-    opt_path = PARAMETER.NEFNet_width64
-
-    opt = parse(opt_path, is_train=False)
+    opt = nafnet_config
     opt['dist'] = False
-    model = create_model(opt)
+    model = create_model(Config(opt))
 
     return process_video(model=model,
-                  video_path=video_path,
-                  output_folder=output_folder,
-                  batch_size=1)
-
-
-
+                         video_path=video_path,
+                         output_folder=output_folder,
+                         batch_size=1)
 
 if __name__ == '__main__':
-    pass
-    # opt_path = '/home/nehoray/PycharmProjects/VideoImageEnhancement/ben_deblur/ImageDeBlur/NAFNet-width64.yml'
-    # opt = parse(opt_path, is_train=False)
+    # opt = nafnet_config
     # opt['dist'] = False
-    # model = create_model(opt)
+    # model = create_model(Config(opt))
     #
     # process_video(model=model,
-    #               video_path="/home/nehoray/PycharmProjects/VideoImageEnhancement/data/videos/scene_0_resized.mp4", output_folder="/home/nehoray/PycharmProjects/Shaback/ben_deblur/ImageDeBlur/output",
-    #               batch_size=1)
+    #               video_path=r"C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\videos\Car_Going_Down\scene_0_resized_compressed.mp4",
+    #               output_folder=r"C:\Users\orior\PycharmProjects\VideoImageEnhancement",
+    #               batch_size=8)
+
+
+
+
+    # Example list of image paths
+    image_paths = [
+        r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\Shaback\litle_amount_of_images_resized\00057774.png',
+        r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\Shaback\litle_amount_of_images_resized\00057775.png',
+
+        # Add more image paths as needed
+    ]
+    image_list = [cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB) for img_path in
+                  image_paths]  # Read and convert images
+    frames = image_list
+
+    main_nafnet_list_of_frames(frames)
