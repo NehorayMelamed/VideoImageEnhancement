@@ -163,11 +163,11 @@ def display_mask_bw(mask):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-if __name__ == "__main__":
-    image_path = r'C:\Users\dudyk\PycharmProjects\NehorayWorkSpace\Shaback\models\img.png'
-    bbox = (425, 600, 700, 875)  # Example bounding box coordinates
-    checkpoint_path = r'C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/sam_vit_h_4b8939.pth'
+if __name__ == '__main__':
 
-    mask = get_mask_from_bbox(image_path, checkpoint_path, interactive=True)
+    # Example usage
+    image_path = r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\Shaback\sub_video_2\00001416.png'
+    model_path = r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\checkpoints\sam\sam_vit_h_4b8939.pth'
+    mask = get_mask_from_bbox(image_path, model_path, interactive=True)
     display_mask_bw(mask)
     print(mask)

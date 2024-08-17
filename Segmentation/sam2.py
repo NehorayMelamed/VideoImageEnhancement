@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ultralytics import SAM
 
+
 def draw_bbox(event, x, y, flags, param):
     global start_point, end_point, drawing, current_bbox
     if event == cv2.EVENT_LBUTTONDOWN:
@@ -122,12 +123,13 @@ def display_mask_bw(mask):
     plt.axis('off')
     plt.show()
 
+if __name__ == '__main__':
 
-# Example usage
-image_path = 'C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/img.png'
-bbox = [50, 50, 150, 150]  # Example bounding box coordinates
-model_path = 'C:/Users/dudyk/PycharmProjects/NehorayWorkSpace/Shaback/models/sam_l.pt'
-bbox = interactive_bbox_drawing(image_path)
-mask = get_mask_from_bbox_ultralytics(image_path, model_path, bbox, display_mask=True)
-display_mask_bw(mask)
-print(mask)
+    # Example usage
+    image_path = r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\data\images\Shaback\sub_video_2\00001416.png'
+    bbox = [50, 50, 150, 150]  # Example bounding box coordinates
+    model_path = r'C:\Users\orior\PycharmProjects\VideoImageEnhancement\checkpoints\sam\sam_vit_h_4b8939.pth'
+    bbox = interactive_bbox_drawing(image_path)
+    mask = get_mask_from_bbox_ultralytics(image_path, model_path, bbox, display_mask=True)
+    display_mask_bw(mask)
+    print(mask)
