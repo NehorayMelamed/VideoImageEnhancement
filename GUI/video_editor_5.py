@@ -1,7 +1,9 @@
-from PyQt5.QtCore import Qt, QRect, QPoint, pyqtSignal, QTimer
-from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QColor
+from PyQt5.QtCore import Qt, QRect, QPoint, pyqtSignal, QTimer, QThread, QSize
+from PyQt5.QtGui import QImage, QPixmap, QPen, QMovie, QColor, QPainter, QMovie
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, \
-    QLabel, QSlider, QComboBox, QLineEdit, QScrollArea, QDialog, QInputDialog, QRubberBand, QMessageBox, QProgressDialog
+    QLabel, QSlider, QComboBox, QLineEdit, QScrollArea, QDialog, QInputDialog, QRubberBand, QMessageBox, \
+    QProgressDialog, QFrame, QProgressBar
+
 import torch
 import cv2
 import numpy as np
@@ -11,11 +13,9 @@ import sys
 
 from Detection.yolo_world import get_bounding_boxes
 from Detection.dino import detect_objects_dino, load_model
-from Segmentation.sam import get_mask_from_bbox
-from Tracking.co_tracker.co_tracker import track_points_in_video_auto
+
 import PARAMETER
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QSize
 
 from Tracking.croper_tracker import Tracker
 
@@ -179,7 +179,7 @@ class VideoEditor(QMainWindow):
                     text-decoration: none;
                     font-size: 14px;
                     margin: 4px 2px;
-                    border-radius: 4px;
+                    border-radius: 15px;
                 }
                 QPushButton:hover {
                     background-color: #555555;  /* Lighter gray for hover effect */
@@ -192,19 +192,28 @@ class VideoEditor(QMainWindow):
                     border: 1px solid #CCCCCC;
                     background: white;
                     height: 10px;
-                    border-radius: 4px;
+                    border-radius: 5px;
                 }
                 QSlider::handle:horizontal {
                     background: #333333;
                     border: 1px solid #333333;
                     width: 18px;
-                    margin: -2px 0;
+                    height: 18px;
+                    margin: -5px 0;
                     border-radius: 9px;
+                }
+                QSlider::sub-page:horizontal {
+                    background: #CCCCCC;
+                    border-radius: 5px;
+                }
+                QSlider::add-page:horizontal {
+                    background: #FFFFFF;
+                    border-radius: 5px;
                 }
                 QComboBox, QLineEdit {
                     padding: 6px;
                     border: 1px solid #CCCCCC;
-                    border-radius: 4px;
+                    border-radius: 15px;
                     background-color: white;
                 }
             """)
@@ -236,26 +245,38 @@ class VideoEditor(QMainWindow):
         # Toolbar actions
         self.upload_action = self.toolbar.addAction(QIcon("icons/upload.png"), "Upload")
         self.upload_action.triggered.connect(self.upload_video)
-        self.toolbar.addSeparator()
+        self.add_separator(self.toolbar, 12, line_before=True)
 
         self.trim_action = self.toolbar.addAction(QIcon("icons/trim.png"), "Trim")
         self.trim_action.triggered.connect(self.trim_video)
 
         self.crop_action = self.toolbar.addAction(QIcon("icons/crop.png"), "Crop")
         self.crop_action.triggered.connect(self.crop_video)
-        self.toolbar.addSeparator()
+        self.add_separator(self.toolbar, 12, line_before=False)
+        self.add_separator(self.toolbar, 12, add_line=False)
 
         self.rotate_action = self.toolbar.addAction(QIcon("icons/rotate.png"), "Rotate")
         self.rotate_action.triggered.connect(self.rotate_video)
+
+        self.scale_action = self.toolbar.addAction(QIcon("icons/scale.png"), "Scale")
+        self.scale_action.triggered.connect(self.scale_video)
+
+        self.aspect_ratio_action = self.toolbar.addAction(QIcon("icons/aspect_ratio.png"), "Change Aspect Ratio")
+        self.aspect_ratio_action.triggered.connect(self.change_aspect_ratio)
         self.toolbar.addSeparator()
+
+        self.select_frame_action = self.toolbar.addAction(QIcon("icons/select_frame.png"), "Select Frame")
+        self.select_frame_action.triggered.connect(self.select_single_frame)
+        self.add_separator(self.toolbar, 12, add_line=False)
+        self.add_separator(self.toolbar, 12, line_before=True)
 
         self.undo_action = self.toolbar.addAction(QIcon("icons/undo.png"), "Undo")
         self.undo_action.triggered.connect(self.undo)
 
         self.redo_action = self.toolbar.addAction(QIcon("icons/redo.png"), "Redo")
         self.redo_action.triggered.connect(self.redo)
-        self.toolbar.addSeparator()
 
+        self.add_separator(self.toolbar, 12, line_before=False)
         self.save_action = self.toolbar.addAction(QIcon("icons/save.png"), "Save")
         self.save_action.triggered.connect(self.save_video)
 
@@ -349,6 +370,32 @@ class VideoEditor(QMainWindow):
         self.prompt_input.setMinimumWidth(150)
         self.model_combo.setMinimumWidth(100)
         self.frame_slider.setMinimumWidth(300)
+
+    def add_separator(self, toolbar, width, line_before=True, add_line=True):
+        separator_widget = QWidget()
+        separator_widget.setFixedSize(width, 10)  # Width and height of the separator widget
+
+        line = None
+        if add_line:
+            line = QFrame()
+            line.setFrameShape(QFrame.VLine)
+            line.setFrameShadow(QFrame.Sunken)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        if line_before and line:
+            layout.addWidget(line)
+            layout.addWidget(separator_widget)
+        elif line:
+            layout.addWidget(separator_widget)
+            layout.addWidget(line)
+        else:
+            layout.addWidget(separator_widget)
+
+        container = QWidget()
+        container.setLayout(layout)
+        toolbar.addWidget(container)
 
     def set_video(self, video_path):
         try:
@@ -472,81 +519,60 @@ class VideoEditor(QMainWindow):
             QMessageBox.warning(self, "No Video", "Please upload a video first.")
 
     def process_drawn_box(self, bbox):
-        self.show_progress_dialog("Processing drawn box...")
-        try:
-            if bbox:
-                try:
-                    frame = (self.trimmed_frames or self.frames)[0].copy()
-                    frames = self.trimmed_frames or self.frames
+        if not bbox:
+            logging.warning("No box drawn. Please try again.")
+            QMessageBox.warning(self, "Warning", "No box drawn. Please try again.")
+            return
 
-                    logging.debug(f"Processing box: {bbox}")
+        self.show_loading_indicator()
+        self.process_box_worker = ProcessBoxWorker(self.frames, bbox)
+        self.process_box_worker.finished.connect(self.on_process_box_finished)
+        self.process_box_worker.error.connect(self.on_process_box_error)
+        self.process_box_worker.start()
 
-                    logging.debug("Running tracker...")
-                    crops = Tracker.align_crops_from_BB(frames=frames, initial_BB_XYWH=bbox)
-                    formated_crops = frames_to_constant_format(crops)
-                    logging.debug("Finish tracker...")
+    def on_process_box_finished(self, formated_crops):
+        self.hide_loading_indicator()
+        self.add_undo_state()
+        self.processed_frames = formated_crops
+        self.current_frame = 0
+        self.frame_slider.setRange(0, len(self.processed_frames) - 1)
+        self.frame_slider.setValue(0)
+        self.frames = self.processed_frames
+        self.update_frame()
+        QMessageBox.information(self, "Processing Complete", "Box processing completed successfully.")
 
-                    # Add undo state before modifying frames
-                    self.add_undo_state()
+    def on_process_box_error(self, error_msg):
+        self.hide_loading_indicator()
+        logging.error(f"An error occurred: {error_msg}")
+        QMessageBox.critical(self, "Error", f"An error occurred: {error_msg}")
 
-                    self.processed_frames = formated_crops
-                    self.current_frame = 0
-                    self.frame_slider.setRange(0, len(self.processed_frames) - 1)
-                    self.frame_slider.setValue(0)
-                    self.frames = self.processed_frames  # Update the main frames list
-                    self.update_frame()
-                except Exception as e:
-                    print(f"An error occurred: {str(e)}")
-                    logging.error(f"An error occurred: {str(e)}")
-                    logging.error(traceback.format_exc())
-                    QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
-            else:
-                logging.warning("No box drawn. Please try again.")
-                QMessageBox.warning(self, "Warning", "No box drawn. Please try again.")
-        finally:
-            self.close_progress_dialog()
-
-    def generate_grid_points(self, mask, bbox):
-        try:
-            y, x = np.where(mask)
-            if len(x) == 0 or len(y) == 0:
-                center_x = bbox[0] + bbox[2] // 2
-                center_y = bbox[1] + bbox[3] // 2
-            else:
-                center_x, center_y = np.mean(x), np.mean(y)
-            return [(center_x, center_y)]
-        except Exception as e:
-            logging.error(f"Error in generate_grid_points: {str(e)}")
-            logging.error(traceback.format_exc())
-            self.show_error_message("Error", f"An error occurred: {str(e)}")
-            return []
+    def update_progress(self, value):
+        if hasattr(self, 'loading_overlay'):
+            self.loading_overlay.set_progress(value)
 
     def detect_objects(self):
         if self.trimmed_frames or self.frames:
             prompt = self.prompt_input.text()
             detector = self.model_combo.currentText()
-            self.show_progress_dialog("Detecting objects...")
-            try:
-                frame = (self.trimmed_frames or self.frames)[0]
-                if detector == "YOLO-World":
-                    boxes = get_bounding_boxes(frame, PARAMETER.yolo_world_checkpoint, [prompt])
-                else:  # DINO
-                    model = load_model(PARAMETER.grounding_dino_config_SwinT_OGC, PARAMETER.grounding_dino_checkpoint)
-                    model = model.to('cuda' if torch.cuda.is_available() else 'cpu')
-                    boxes, logits, phrases = detect_objects_dino(model, frame, prompt)
-                    if isinstance(boxes, torch.Tensor):
-                        boxes = boxes.cpu().tolist()
+            self.show_loading_indicator()
+            self.detect_worker = DetectObjectsWorker(self.trimmed_frames or self.frames, prompt, detector)
+            self.detect_worker.finished.connect(self.on_detect_objects_finished)
+            self.detect_worker.error.connect(self.on_detect_objects_error)
+            self.detect_worker.start()
+        else:
+            QMessageBox.warning(self, "No Video", "Please upload a video first.")
 
-                if len(boxes) > 0:
-                    self.choose_box(boxes)
-                else:
-                    QMessageBox.warning(self, "No Objects Detected", "No objects were detected with the given prompt.")
-            except Exception as e:
-                logging.error(f"An error occurred during object detection: {str(e)}")
-                logging.error(traceback.format_exc())
-                QMessageBox.critical(self, "Error", f"An error occurred during object detection: {str(e)}")
-            finally:
-                self.close_progress_dialog()
+    def on_detect_objects_finished(self, boxes):
+        self.hide_loading_indicator()
+        if len(boxes) > 0:
+            self.choose_box(boxes)
+        else:
+            QMessageBox.warning(self, "No Objects Detected", "No objects were detected with the given prompt.")
+
+    def on_detect_objects_error(self, error_msg):
+        self.hide_loading_indicator()
+        logging.error(f"An error occurred during object detection: {error_msg}")
+        QMessageBox.critical(self, "Error", f"An error occurred during object detection: {error_msg}")
 
     def delete_frame(self):
         frames_to_use = self.processed_frames if self.processed_frames else self.frames
@@ -596,7 +622,7 @@ class VideoEditor(QMainWindow):
             return
 
         nx, ny, nw, nh = crop_rect
-        self.show_progress_dialog("Cropping video...")
+        self.show_loading_indicator()
         try:
             cropped_frames = []
             for frame in self.frames:
@@ -636,7 +662,7 @@ class VideoEditor(QMainWindow):
             logging.error(traceback.format_exc())
             self.show_error_message("Error", f"An error occurred: {str(e)}")
         finally:
-            self.close_progress_dialog()
+            self.hide_loading_indicator()
 
     def add_undo_state(self):
         state = {
@@ -739,32 +765,33 @@ class VideoEditor(QMainWindow):
                 return
 
             frames_to_save = self.processed_frames if self.processed_frames else self.frames
-            height, width = frames_to_save[0].shape[:2]
-
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(output_path, fourcc, 30.0, (width, height))
-
-            self.show_progress_dialog("Saving video...")
-            for frame in frames_to_save:
-                if frame.shape[:2] != (height, width):
-                    frame = cv2.resize(frame, (width, height))
-                out.write(frame)
-
-            out.release()
-            QMessageBox.information(self, "Save Complete", "Video has been saved successfully.")
+            self.show_loading_indicator()
+            self.save_worker = SaveVideoWorker(frames_to_save, output_path)
+            self.save_worker.finished.connect(self.on_save_video_finished)
+            self.save_worker.error.connect(self.on_save_video_error)
+            self.save_worker.start()
         except Exception as e:
+            self.hide_loading_indicator()
             logging.error(f"Error in save_video: {str(e)}")
             logging.error(traceback.format_exc())
             self.show_error_message("Error", f"An error occurred while saving the video: {str(e)}")
-        finally:
-            self.close_progress_dialog()
+
+    def on_save_video_finished(self):
+        self.hide_loading_indicator()
+        QMessageBox.information(self, "Save Complete", "Video has been saved successfully.")
+
+    def on_save_video_error(self, error_msg):
+        self.hide_loading_indicator()
+        logging.error(f"Error in save_video: {error_msg}")
+        self.show_error_message("Error", f"An error occurred while saving the video: {error_msg}")
 
     def disable_video_controls(self):
         controls = [self.start_trim_slider, self.end_trim_slider, self.trim_action,
                     self.draw_box_btn, self.detect_btn, self.frame_slider,
                     self.delete_frame_btn, self.save_action, self.mode_combo,
                     self.prompt_input, self.model_combo, self.crop_action,
-                    self.undo_action, self.redo_action, self.rotate_action]  # Add rotate_action to the list
+                    self.undo_action, self.redo_action, self.rotate_action,
+                    self.scale_action, self.select_frame_action]  # Add select_frame_action to the list
         for control in controls:
             control.setEnabled(False)
 
@@ -773,7 +800,8 @@ class VideoEditor(QMainWindow):
                     self.frame_slider, self.delete_frame_btn, self.save_action,
                     self.mode_combo, self.prompt_input, self.model_combo,
                     self.crop_action, self.undo_action, self.redo_action,
-                    self.rotate_action]  # Add rotate_action to the list
+                    self.rotate_action, self.scale_action,
+                    self.select_frame_action]  # Add select_frame_action to the list
         for control in controls:
             control.setEnabled(True)
 
@@ -828,34 +856,6 @@ class VideoEditor(QMainWindow):
         msg.setStandardButtons(QMessageBox.Ok)
         msg.exec_()
 
-    def show_progress_dialog(self, message):
-        if self.progress_dialog is None:
-            self.progress_dialog = QProgressDialog(message, "Cancel", 0, 0, self)
-            self.progress_dialog.setWindowTitle("Processing")
-            self.progress_dialog.setWindowModality(Qt.WindowModal)
-            self.progress_dialog.setMinimumDuration(0)
-            self.progress_dialog.setValue(0)
-            self.progress_dialog.setRange(0, 0)
-
-        self.progress_dialog.setLabelText(message)
-        self.progress_dialog.show()
-
-        if self.progress_timer is None:
-            self.progress_timer = QTimer(self)
-            self.progress_timer.timeout.connect(self.update_progress)
-        self.progress_timer.start(100)
-
-    def update_progress(self):
-        if self.progress_dialog and self.progress_dialog.isVisible():
-            self.progress_dialog.setValue(self.progress_dialog.value() + 1)
-
-    def close_progress_dialog(self):
-        if self.progress_timer:
-            self.progress_timer.stop()
-        if self.progress_dialog:
-            self.progress_dialog.close()
-            self.progress_dialog = None
-
     def on_frame_slider_change(self):
         self.current_frame = self.frame_slider.value()
         self.update_frame()
@@ -893,7 +893,7 @@ class VideoEditor(QMainWindow):
         return frame_with_boxes
 
     def process_auto_box(self, bbox):
-        self.show_progress_dialog("Processing frames...")
+        self.show_loading_indicator()
         try:
             frame = self.trimmed_frames[0] if self.trimmed_frames else self.frames[0]
             frames = self.trimmed_frames or self.frames
@@ -906,51 +906,49 @@ class VideoEditor(QMainWindow):
             h = int(h * height)
             pixel_bbox = (x, y, w, h)
 
-            crops = Tracker.align_crops_from_BB(frames=frames, initial_BB_XYWH=pixel_bbox)
-            formated_crops = frames_to_constant_format(crops)
-
-            # Add undo state before modifying frames
-            self.add_undo_state()
-
-            self.processed_frames = formated_crops
-            self.current_frame = 0
-            self.frame_slider.setRange(0, len(self.processed_frames) - 1)
-            self.frame_slider.setValue(0)
-            self.frames = self.processed_frames
-            self.update_frame()
-            logging.debug(f"Processed {len(self.processed_frames)} frames")
+            self.process_box_worker = ProcessBoxWorker(frames, pixel_bbox)
+            self.process_box_worker.finished.connect(self.on_auto_process_box_finished)
+            self.process_box_worker.error.connect(self.on_process_box_error)
+            self.process_box_worker.start()
 
         except Exception as e:
-            print(f"An error occurred: {str(e)}")
+            self.hide_loading_indicator()
             logging.error(f"An error occurred: {str(e)}")
             logging.error(traceback.format_exc())
             QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
-        finally:
-            self.close_progress_dialog()
+
+    def on_auto_process_box_finished(self, formated_crops):
+        self.hide_loading_indicator()
+        self.add_undo_state()
+        self.processed_frames = formated_crops
+        self.current_frame = 0
+        self.frame_slider.setRange(0, len(self.processed_frames) - 1)
+        self.frame_slider.setValue(0)
+        self.frames = self.processed_frames
+        self.update_frame()
+        logging.debug(f"Processed {len(self.processed_frames)} frames")
+        QMessageBox.information(self, "Processing Complete", "Auto box processing completed successfully.")
 
     def rotate_video(self):
         if not self.frames:
             QMessageBox.warning(self, "No Video", "Please upload a video first.")
             return
 
-        angle, ok = QInputDialog.getInt(self, "Rotate Video", "Enter rotation angle (degrees):", 0, -360, 360)
-        if not ok:
-            return
+        frame = self.frames[self.current_frame]
+        dialog = RotationDialog(self, frame)
+        result = dialog.exec_()
 
-        apply_all, ok = QInputDialog.getItem(self, "Rotate Video", "Apply to:", ["Current Frame", "All Frames"], 0,
-                                             False)
-        if not ok:
-            return
+        if result > 0:
+            angle = dialog.angle
+            self.add_undo_state()
 
-        self.add_undo_state()
+            if result == 2:  # Apply to all frames
+                self.rotate_all_frames(angle)
+            else:  # Apply to current frame
+                self.rotate_single_frame(angle)
 
-        if apply_all == "All Frames":
-            self.rotate_all_frames(angle)
-        else:
-            self.rotate_single_frame(angle)
-
-        self.update_frame()
-        QMessageBox.information(self, "Rotation Complete", f"Video rotated by {angle} degrees.")
+            self.update_frame()
+            QMessageBox.information(self, "Rotation Complete", f"Video rotated by {angle} degrees.")
 
     def rotate_all_frames(self, angle):
         rotated_frames = []
@@ -979,7 +977,176 @@ class VideoEditor(QMainWindow):
         rotated_frame = cv2.warpAffine(frame, rotation_matrix, (width, height), flags=cv2.INTER_LINEAR)
         return rotated_frame
 
+    def show_loading_indicator(self):
+        if not hasattr(self, 'loading_overlay'):
+            self.loading_overlay = LoadingOverlay(self)
+        self.loading_overlay.resize(self.size())
+        self.loading_overlay.show()
+        QApplication.processEvents()
 
+    def hide_loading_indicator(self):
+        if hasattr(self, 'loading_overlay'):
+            self.loading_overlay.hide()
+        QApplication.processEvents()
+
+    def scale_video(self):
+        if not self.frames:
+            QMessageBox.warning(self, "No Video", "Please upload a video first.")
+            return
+
+        frame = self.frames[self.current_frame]
+        dialog = ScalingDialog(self, frame)
+        result = dialog.exec_()
+
+        if result > 0:
+            scale_factor = dialog.scale_factor / 100
+            self.add_undo_state()
+
+            if result == 2:  # Apply to all frames
+                self.scale_all_frames(scale_factor)
+            else:  # Apply to current frame
+                self.scale_single_frame(scale_factor)
+
+            self.update_frame()
+            QMessageBox.information(self, "Scaling Complete", f"Video scaled to {dialog.scale_factor}%.")
+
+    def scale_all_frames(self, scale_factor):
+        scaled_frames = []
+        for frame in self.frames:
+            scaled_frame = self.scale_frame(frame, scale_factor)
+            scaled_frames.append(scaled_frame)
+        self.frames = scaled_frames
+        if self.processed_frames:
+            self.processed_frames = scaled_frames
+        if self.trimmed_frames:
+            self.trimmed_frames = scaled_frames
+
+    def scale_single_frame(self, scale_factor):
+        if 0 <= self.current_frame < len(self.frames):
+            scaled_frame = self.scale_frame(self.frames[self.current_frame], scale_factor)
+            self.frames[self.current_frame] = scaled_frame
+            if self.processed_frames:
+                self.processed_frames[self.current_frame] = scaled_frame
+            if self.trimmed_frames:
+                self.trimmed_frames[self.current_frame] = scaled_frame
+
+    def scale_frame(self, frame, scale_factor):
+        try:
+            height, width = frame.shape[:2]
+            new_height = max(1, int(height * scale_factor))
+            new_width = max(1, int(width * scale_factor))
+
+            if scale_factor >= 1:  # Enlarging
+                scaled_frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+                y_offset = max(0, (new_height - height) // 2)
+                x_offset = max(0, (new_width - width) // 2)
+                result_frame = scaled_frame[y_offset:y_offset + height, x_offset:x_offset + width]
+            else:  # Shrinking
+                scaled_frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_AREA)
+                result_frame = np.zeros((height, width, 3), dtype=np.uint8)
+                y_offset = (height - new_height) // 2
+                x_offset = (width - new_width) // 2
+                result_frame[y_offset:y_offset + new_height, x_offset:x_offset + new_width] = scaled_frame
+
+            return result_frame
+        except Exception as e:
+            print(f"Error in scale_frame: {str(e)}")
+            return frame.copy()  # Return a copy of the original frame if scaling fails
+
+    def select_single_frame(self):
+        if not self.frames:
+            QMessageBox.warning(self, "No Video", "Please upload a video first.")
+            return
+
+        current_frame = self.current_frame
+        frame_count = len(self.frames)
+
+        selected_frame, ok = QInputDialog.getInt(self, "Select Frame",
+                                                 f"Enter frame number (1-{frame_count}):",
+                                                 current_frame + 1, 1, frame_count)
+        if ok:
+            self.add_undo_state()
+            selected_frame -= 1  # Convert to 0-based index
+            self.frames = [self.frames[selected_frame]]
+            self.processed_frames = [self.processed_frames[selected_frame]] if self.processed_frames else []
+            self.trimmed_frames = [self.trimmed_frames[selected_frame]] if self.trimmed_frames else []
+            self.current_frame = 0
+            self.frame_slider.setRange(0, 0)
+            self.start_trim_slider.setRange(0, 0)
+            self.end_trim_slider.setRange(0, 0)
+            self.update_frame()
+            QMessageBox.information(self, "Frame Selected", f"Video reduced to frame {selected_frame + 1}.")
+
+    def apply_aspect_ratio(self, frame, new_ratio):
+        height, width = frame.shape[:2]
+        current_ratio = width / height
+        target_ratio = new_ratio[0] / new_ratio[1]
+
+        if abs(current_ratio - target_ratio) < 0.01:  # If ratios are very close, return original frame
+            return frame
+
+        if current_ratio > target_ratio:
+            # Current frame is wider, need to crop width
+            new_width = int(height * target_ratio)
+            start = (width - new_width) // 2
+            modified_frame = frame[:, start:start + new_width]
+        else:
+            # Current frame is taller, need to crop height
+            new_height = int(width / target_ratio)
+            start = (height - new_height) // 2
+            modified_frame = frame[start:start + new_height, :]
+
+        # Ensure the modified frame is not empty
+        if modified_frame.size == 0:
+            print("Warning: Modified frame is empty. Returning original frame.")
+            return frame
+
+        return modified_frame
+
+    def change_aspect_ratio(self):
+        if not self.frames:
+            QMessageBox.warning(self, "No Video", "Please upload a video first.")
+            return
+
+        frame = self.frames[self.current_frame]
+        dialog = AspectRatioDialog(self, frame)
+        result = dialog.exec_()
+
+        if result > 0:
+            new_ratio = dialog.get_aspect_ratio()
+            self.add_undo_state()
+
+            try:
+                if result == 2:  # Apply to all frames
+                    self.apply_aspect_ratio_all_frames(new_ratio)
+                else:  # Apply to current frame
+                    self.apply_aspect_ratio_single_frame(new_ratio)
+
+                self.update_frame()
+                QMessageBox.information(self, "Aspect Ratio Changed",
+                                        f"Video aspect ratio changed to {new_ratio[0]}:{new_ratio[1]}.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"An error occurred while changing aspect ratio: {str(e)}")
+
+    def apply_aspect_ratio_all_frames(self, new_ratio):
+        modified_frames = []
+        for frame in self.frames:
+            modified_frame = self.apply_aspect_ratio(frame, new_ratio)
+            modified_frames.append(modified_frame)
+        self.frames = modified_frames
+        if self.processed_frames:
+            self.processed_frames = modified_frames
+        if self.trimmed_frames:
+            self.trimmed_frames = modified_frames
+
+    def apply_aspect_ratio_single_frame(self, new_ratio):
+        if 0 <= self.current_frame < len(self.frames):
+            modified_frame = self.apply_aspect_ratio(self.frames[self.current_frame], new_ratio)
+            self.frames[self.current_frame] = modified_frame
+            if self.processed_frames:
+                self.processed_frames[self.current_frame] = modified_frame
+            if self.trimmed_frames:
+                self.trimmed_frames[self.current_frame] = modified_frame
 
 
 class DrawingWindow(QWidget):
@@ -1034,17 +1201,22 @@ class BoxSelectionDialog(QDialog):
                 background-color: #f0f0f0;
             }
             QLabel {
-                font-size: 14px;
-                color: #333;
+                    font-size: 14px;
+                    color: #333333;
             }
             QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border-radius: 5px;
-                padding: 10px;
+                    background-color: #333333;  /* Dark gray, almost black */
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    text-align: center;
+                    text-decoration: none;
+                    font-size: 14px;
+                    margin: 4px 2px;
+                    border-radius: 15px;
             }
             QPushButton:hover {
-                background-color: #45a049;
+                    background-color: #555555;  /* Lighter gray for hover effect */
             }
         """)
         layout = QVBoxLayout(self)
@@ -1145,6 +1317,333 @@ class CropDialog(QDialog):
             x, y, w, h = self.crop_rect
             return (x / self.width(), y / self.height(), w / self.width(), h / self.height())
         return None
+
+
+class RotationDialog(QDialog):
+    def __init__(self, parent, frame):
+        super().__init__(parent)
+        self.setWindowTitle("Rotate Video")
+        self.frame = frame
+        self.angle = 0
+
+        layout = QVBoxLayout(self)
+
+        # Rotation preview
+        self.preview_label = QLabel()
+        layout.addWidget(self.preview_label)
+
+        # Rotation slider
+        slider_layout = QHBoxLayout()
+        self.rotation_slider = QSlider(Qt.Horizontal)
+        self.rotation_slider.setRange(-180, 180)
+        self.rotation_slider.setValue(0)
+        self.rotation_slider.valueChanged.connect(self.update_preview)
+        slider_layout.addWidget(QLabel("Angle:"))
+        slider_layout.addWidget(self.rotation_slider)
+        self.angle_label = QLabel("0°")
+        slider_layout.addWidget(self.angle_label)
+        layout.addLayout(slider_layout)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        apply_current_btn = QPushButton("Apply to Current Frame")
+        apply_current_btn.clicked.connect(lambda: self.done(1))
+        apply_all_btn = QPushButton("Apply to All Frames")
+        apply_all_btn.clicked.connect(lambda: self.done(2))
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(apply_current_btn)
+        button_layout.addWidget(apply_all_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
+
+        self.update_preview()
+
+    def update_preview(self):
+        self.angle = self.rotation_slider.value()
+        self.angle_label.setText(f"{self.angle}°")
+        rotated_frame = self.parent().rotate_frame(self.frame, self.angle)
+        height, width = rotated_frame.shape[:2]
+        bytes_per_line = 3 * width
+        q_image = QImage(rotated_frame.data, width, height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
+        pixmap = QPixmap.fromImage(q_image)
+        self.preview_label.setPixmap(pixmap.scaled(400, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+
+class ScalingDialog(QDialog):
+    def __init__(self, parent, frame):
+        super().__init__(parent)
+        self.setWindowTitle("Scale Video")
+        self.frame = frame
+        self.scale_factor = 100
+
+        layout = QVBoxLayout(self)
+
+        # Scaling preview
+        self.preview_label = QLabel()
+        self.preview_label.setFixedSize(400, 300)
+        layout.addWidget(self.preview_label)
+
+        # Scaling slider
+        slider_layout = QHBoxLayout()
+        self.scaling_slider = QSlider(Qt.Horizontal)
+        self.scaling_slider.setRange(10, 300)  # Allow scaling from 10% to 300%
+        self.scaling_slider.setValue(100)
+        self.scaling_slider.valueChanged.connect(self.update_preview)
+        slider_layout.addWidget(QLabel("Scale:"))
+        slider_layout.addWidget(self.scaling_slider)
+        self.scale_label = QLabel("100%")
+        slider_layout.addWidget(self.scale_label)
+        layout.addLayout(slider_layout)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        apply_current_btn = QPushButton("Apply to Current Frame")
+        apply_current_btn.clicked.connect(lambda: self.done(1))
+        apply_all_btn = QPushButton("Apply to All Frames")
+        apply_all_btn.clicked.connect(lambda: self.done(2))
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(apply_current_btn)
+        button_layout.addWidget(apply_all_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
+
+        self.update_preview()
+
+    def update_preview(self):
+        try:
+            self.scale_factor = self.scaling_slider.value()
+            self.scale_label.setText(f"{self.scale_factor}%")
+
+            frame_copy = self.frame.copy()
+            scaled_frame = self.parent().scale_frame(frame_copy, self.scale_factor / 100)
+
+            if scaled_frame is not None and scaled_frame.size > 0:
+                height, width = scaled_frame.shape[:2]
+                bytes_per_line = 3 * width
+
+                # Convert the numpy array to bytes
+                frame_bytes = scaled_frame.tobytes()
+
+                q_image = QImage(frame_bytes, width, height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
+                pixmap = QPixmap.fromImage(q_image)
+                self.preview_label.setPixmap(pixmap.scaled(400, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            else:
+                print("Error: Scaled frame is None or empty")
+        except Exception as e:
+            print(f"Error in update_preview: {str(e)}")
+
+
+class LoadingOverlay(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+
+        layout = QVBoxLayout(self)
+
+        self.label = QLabel(self)
+        self.movie = QMovie("icons/loading.gif")
+        self.label.setMovie(self.movie)
+        self.movie.setScaledSize(QSize(50, 50))
+        layout.addWidget(self.label, alignment=Qt.AlignCenter)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.movie.start()
+
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        self.movie.stop()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 100))
+
+
+class AnimationThread(QThread):
+    def __init__(self, movie):
+        super().__init__()
+        self.movie = movie
+        self.is_running = True
+
+    def run(self):
+        self.movie.start()
+        while self.is_running:
+            self.msleep(100)  # Sleep for a short time to prevent high CPU usage
+
+    def stop(self):
+        self.is_running = False
+        self.wait()
+        self.movie.stop()
+
+
+class ProcessBoxWorker(QThread):
+    finished = pyqtSignal(list)
+    error = pyqtSignal(str)
+
+    def __init__(self, frames, bbox):
+        super().__init__()
+        self.frames = frames
+        self.bbox = bbox
+
+    def run(self):
+        try:
+            logging.debug(f"Processing box: {self.bbox}")
+            logging.debug("Running tracker...")
+
+            crops = Tracker.align_crops_from_BB(frames=self.frames, initial_BB_XYWH=self.bbox)
+            formated_crops = frames_to_constant_format(crops)
+
+            logging.debug("Finish tracker...")
+            self.finished.emit(formated_crops)
+        except Exception as e:
+            logging.error(f"Error in ProcessBoxWorker: {str(e)}")
+            logging.error(traceback.format_exc())
+            self.error.emit(str(e))
+
+
+class DetectObjectsWorker(QThread):
+    finished = pyqtSignal(list)
+    error = pyqtSignal(str)
+
+    def __init__(self, frames, prompt, detector):
+        super().__init__()
+        self.frames = frames
+        self.prompt = prompt
+        self.detector = detector
+
+    def run(self):
+        try:
+            frame = self.frames[0]
+            if self.detector == "YOLO-World":
+                boxes = get_bounding_boxes(frame, PARAMETER.yolo_world_checkpoint, [self.prompt])
+            else:  # DINO
+                model = load_model(PARAMETER.grounding_dino_config_SwinT_OGC, PARAMETER.grounding_dino_checkpoint)
+                model = model.to('cuda' if torch.cuda.is_available() else 'cpu')
+                boxes, logits, phrases = detect_objects_dino(model, frame, self.prompt)
+                if isinstance(boxes, torch.Tensor):
+                    boxes = boxes.cpu().tolist()
+            self.finished.emit(boxes)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class SaveVideoWorker(QThread):
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+
+    def __init__(self, frames, output_path):
+        super().__init__()
+        self.frames = frames
+        self.output_path = output_path
+
+    def run(self):
+        try:
+            height, width = self.frames[0].shape[:2]
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            out = cv2.VideoWriter(self.output_path, fourcc, 30.0, (width, height))
+
+            for frame in self.frames:
+                if frame.shape[:2] != (height, width):
+                    frame = cv2.resize(frame, (width, height))
+                out.write(frame)
+
+            out.release()
+            self.finished.emit()
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class AspectRatioDialog(QDialog):
+    def __init__(self, parent, frame):
+        super().__init__(parent)
+        self.setWindowTitle("Change Aspect Ratio")
+        self.frame = frame
+        self.aspect_ratio = (16, 9)  # Default aspect ratio
+
+        layout = QVBoxLayout(self)
+
+        # Aspect ratio preview
+        self.preview_label = QLabel()
+        self.preview_label.setFixedSize(400, 300)
+        layout.addWidget(self.preview_label)
+
+        # Aspect ratio selection
+        ratio_layout = QHBoxLayout()
+        ratio_layout.addWidget(QLabel("Aspect Ratio:"))
+        self.ratio_combo = QComboBox()
+        self.ratio_combo.addItems(["16:9", "4:3", "1:1", "21:9", "Custom"])
+        self.ratio_combo.currentTextChanged.connect(self.on_ratio_changed)
+        ratio_layout.addWidget(self.ratio_combo)
+        layout.addLayout(ratio_layout)
+
+        # Custom ratio inputs
+        self.custom_layout = QHBoxLayout()
+        self.width_input = QLineEdit()
+        self.height_input = QLineEdit()
+        self.custom_layout.addWidget(QLabel("Width:"))
+        self.custom_layout.addWidget(self.width_input)
+        self.custom_layout.addWidget(QLabel("Height:"))
+        self.custom_layout.addWidget(self.height_input)
+        self.custom_widget = QWidget()
+        self.custom_widget.setLayout(self.custom_layout)
+        layout.addWidget(self.custom_widget)
+        self.custom_widget.hide()
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        apply_current_btn = QPushButton("Apply to Current Frame")
+        apply_current_btn.clicked.connect(lambda: self.done(1))
+        apply_all_btn = QPushButton("Apply to All Frames")
+        apply_all_btn.clicked.connect(lambda: self.done(2))
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(apply_current_btn)
+        button_layout.addWidget(apply_all_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
+
+        self.update_preview()
+
+    def on_ratio_changed(self, text):
+        if text == "Custom":
+            self.custom_widget.show()
+            self.adjustSize()
+        else:
+            self.custom_widget.hide()
+            self.adjustSize()
+            w, h = map(int, text.split(":"))
+            self.aspect_ratio = (w, h)
+        self.update_preview()
+
+    def update_preview(self):
+        try:
+            modified_frame = self.parent().apply_aspect_ratio(self.frame, self.aspect_ratio)
+            height, width = modified_frame.shape[:2]
+            bytes_per_line = 3 * width
+
+            # Convert numpy array to bytes
+            rgb_image = cv2.cvtColor(modified_frame, cv2.COLOR_BGR2RGB)
+            q_image = QImage(rgb_image.data, width, height, bytes_per_line, QImage.Format_RGB888)
+
+            pixmap = QPixmap.fromImage(q_image)
+            self.preview_label.setPixmap(pixmap.scaled(400, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        except Exception as e:
+            print(f"Error in update_preview: {str(e)}")
+            traceback.print_exc()
+
+    def get_aspect_ratio(self):
+        if self.ratio_combo.currentText() == "Custom":
+            try:
+                w = int(self.width_input.text())
+                h = int(self.height_input.text())
+                return (w, h)
+            except ValueError:
+                return (16, 9)  # Default to 16:9 if invalid input
+        return self.aspect_ratio
 
 
 if __name__ == "__main__":
